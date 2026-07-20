@@ -167,7 +167,7 @@ var TMOfferExtract = (() => {
   var MARGIN = 20;
   var DRAG_THRESHOLD = 6;
   function installFloatingButton({ id, label, onClick }) {
-    document.getElementById(id)?.remove();
+    if (document.getElementById(id)) return;
     const button = document.createElement("button");
     button.id = id;
     button.type = "button";
