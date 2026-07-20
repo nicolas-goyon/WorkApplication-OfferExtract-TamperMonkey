@@ -234,6 +234,21 @@ var TMOfferExtract = (() => {
     setValue(BUTTON_CORNER_KEY, corner);
   }
 
+  // src/shared/dom/uiRoot.ts
+  var HOST_ID = "offerextract-ui-root";
+  var root = null;
+  function getUIRoot() {
+    if (root) return root;
+    const host = document.createElement("div");
+    host.id = HOST_ID;
+    document.body.appendChild(host);
+    root = host.attachShadow({ mode: "open" });
+    const reset = document.createElement("style");
+    reset.textContent = ":host { all: initial; }";
+    root.appendChild(reset);
+    return root;
+  }
+
   // src/ui/cornerStyles.ts
   function cornerStyles(corner, margin) {
     const base = { left: "auto", right: "auto", top: "auto", bottom: "auto" };
@@ -255,7 +270,8 @@ var TMOfferExtract = (() => {
   var MARGIN = 20;
   var DRAG_THRESHOLD = 6;
   function installFloatingButton({ id, label, onClick }) {
-    if (document.getElementById(id)) return;
+    const root2 = getUIRoot();
+    if (root2.getElementById(id)) return;
     const button = document.createElement("button");
     button.id = id;
     button.type = "button";
@@ -280,7 +296,7 @@ var TMOfferExtract = (() => {
       userSelect: "none"
     });
     Object.assign(button.style, cornerStyles(getButtonCorner(), MARGIN));
-    document.body.appendChild(button);
+    root2.appendChild(button);
     button.addEventListener("pointerdown", (downEvent) => {
       let dragging = false;
       let lastX = downEvent.clientX;
@@ -328,7 +344,7 @@ var TMOfferExtract = (() => {
     });
   }
   function removeFloatingButton(id) {
-    document.getElementById(id)?.remove();
+    getUIRoot().getElementById(id)?.remove();
   }
   function nearestCorner(rect) {
     const centerX = rect.left + rect.width / 2;
@@ -368,7 +384,8 @@ var TMOfferExtract = (() => {
     else openMenu();
   }
   function buildPanel() {
-    document.getElementById(PANEL_ID)?.remove();
+    const root2 = getUIRoot();
+    root2.getElementById(PANEL_ID)?.remove();
     tabButtons.clear();
     const panel = document.createElement("div");
     panel.id = PANEL_ID;
@@ -438,7 +455,7 @@ var TMOfferExtract = (() => {
     });
     panel.appendChild(nav);
     panel.appendChild(content);
-    document.body.appendChild(panel);
+    root2.appendChild(panel);
     panelEl = panel;
     contentEl = content;
   }
@@ -463,7 +480,8 @@ var TMOfferExtract = (() => {
   var PROMPT_ID = "offerextract-site-prompt";
   var PROMPT_MARGIN = 84;
   function showSitePrompt(onAnswered) {
-    if (document.getElementById(PROMPT_ID)) return;
+    const root2 = getUIRoot();
+    if (root2.getElementById(PROMPT_ID)) return;
     const box2 = document.createElement("div");
     box2.id = PROMPT_ID;
     Object.assign(box2.style, {
@@ -502,7 +520,7 @@ var TMOfferExtract = (() => {
     row.appendChild(yesButton);
     row.appendChild(noButton);
     box2.appendChild(row);
-    document.body.appendChild(box2);
+    root2.appendChild(box2);
   }
   function styleAnswerButton(button, background) {
     Object.assign(button.style, {
@@ -535,7 +553,7 @@ var TMOfferExtract = (() => {
       boxShadow: "0 2px 8px rgba(0,0,0,.25)",
       maxWidth: "320px"
     });
-    document.body.appendChild(toast);
+    getUIRoot().appendChild(toast);
     setTimeout(() => toast.remove(), durationMs);
   }
 
@@ -570,13 +588,14 @@ var TMOfferExtract = (() => {
   // src/ui/elementInspector.ts
   var OVERLAY_ID = "offerextract-inspect-overlay";
   var BANNER_ID = "offerextract-inspect-banner";
-  var OWN_UI_SELECTOR = `#${OVERLAY_ID}, #${BANNER_ID}, #offerextract-menu-panel, #offerextract-button`;
+  var OWN_UI_SELECTOR = "#offerextract-ui-root";
   function startInspecting(onSelect, onCancel) {
     const overlay = createOverlayBox("#2563eb");
     overlay.id = OVERLAY_ID;
     const banner = createBanner();
-    document.body.appendChild(overlay);
-    document.body.appendChild(banner);
+    const root2 = getUIRoot();
+    root2.appendChild(overlay);
+    root2.appendChild(banner);
     const previousCursor = document.documentElement.style.cursor;
     document.documentElement.style.cursor = "crosshair";
     let stopped = false;
@@ -652,7 +671,7 @@ var TMOfferExtract = (() => {
     currentEl = el;
     if (!box) {
       box = createOverlayBox("#22c55e");
-      document.body.appendChild(box);
+      getUIRoot().appendChild(box);
     }
     positionOverlayOnElement(box, el);
     if (rafId === null) tick();
@@ -773,7 +792,7 @@ var TMOfferExtract = (() => {
     if (!selected) {
       const hint = document.createElement("p");
       hint.textContent = 'Click "Fetch offer", then click any element on the page (e.g. a paragraph of the description). Press Esc to cancel.';
-      Object.assign(hint.style, { margin: "0", color: "#9ca3af" });
+      Object.assign(hint.style, { margin: "0", color: "#f9fafb" });
       section.appendChild(hint);
       return;
     }
@@ -783,7 +802,7 @@ var TMOfferExtract = (() => {
       margin: "0 0 6px",
       fontFamily: "ui-monospace, SFMono-Regular, monospace",
       fontSize: "12px",
-      color: "#93c5fd",
+      color: "#f9fafb",
       overflowWrap: "anywhere"
     });
     const sliderRow = document.createElement("div");

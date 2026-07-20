@@ -1,13 +1,15 @@
 /** One-off "is this a job site?" prompt, shown until the hostname has an answer on record. */
 import { getButtonCorner } from '../core/buttonPosition';
 import { setSiteStatus } from '../core/siteStatus';
+import { getUIRoot } from '../shared/dom/uiRoot';
 import { cornerStyles } from './cornerStyles';
 
 const PROMPT_ID = 'offerextract-site-prompt';
 const PROMPT_MARGIN = 84; // clears the floating button
 
 export function showSitePrompt(onAnswered?: (isJobSite: boolean) => void): void {
-  if (document.getElementById(PROMPT_ID)) return;
+  const root = getUIRoot();
+  if (root.getElementById(PROMPT_ID)) return;
 
   const box = document.createElement('div');
   box.id = PROMPT_ID;
@@ -54,7 +56,7 @@ export function showSitePrompt(onAnswered?: (isJobSite: boolean) => void): void 
   row.appendChild(noButton);
   box.appendChild(row);
 
-  document.body.appendChild(box);
+  root.appendChild(box);
 }
 
 function styleAnswerButton(button: HTMLButtonElement, background: string): void {

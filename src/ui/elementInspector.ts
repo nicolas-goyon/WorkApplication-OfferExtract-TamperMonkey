@@ -5,11 +5,16 @@
  * button, menu panel, the picker's own overlay/banner) so you can't
  * accidentally "select" the extension chrome.
  */
+import { getUIRoot } from '../shared/dom/uiRoot';
 import { createOverlayBox, hideOverlayBox, positionOverlayOnElement } from '../shared/ui/elementOverlay';
 
 const OVERLAY_ID = 'offerextract-inspect-overlay';
 const BANNER_ID = 'offerextract-inspect-banner';
-const OWN_UI_SELECTOR = `#${OVERLAY_ID}, #${BANNER_ID}, #offerextract-menu-panel, #offerextract-button`;
+// All of the plugin's own UI lives inside one shadow root (see uiRoot.ts).
+// document.elementFromPoint() retargets hits inside a shadow tree to its
+// host element, so excluding that single host id covers every piece of our
+// UI (button, menu, overlay, banner) in one go.
+const OWN_UI_SELECTOR = '#offerextract-ui-root';
 
 export interface InspectorHandle {
   /** Cancels the picker programmatically, as if Escape had been pressed. */
@@ -24,8 +29,9 @@ export function startInspecting(onSelect: (el: Element) => void, onCancel: () =>
   const overlay = createOverlayBox('#2563eb');
   overlay.id = OVERLAY_ID;
   const banner = createBanner();
-  document.body.appendChild(overlay);
-  document.body.appendChild(banner);
+  const root = getUIRoot();
+  root.appendChild(overlay);
+  root.appendChild(banner);
 
   const previousCursor = document.documentElement.style.cursor;
   document.documentElement.style.cursor = 'crosshair';

@@ -5,6 +5,7 @@
  * or layout shifts on the underlying page, without needing per-site scroll
  * listeners.
  */
+import { getUIRoot } from '../shared/dom/uiRoot';
 import { createOverlayBox, positionOverlayOnElement } from '../shared/ui/elementOverlay';
 
 let box: HTMLDivElement | null = null;
@@ -15,7 +16,7 @@ export function showSelectionHighlight(el: Element): void {
   currentEl = el;
   if (!box) {
     box = createOverlayBox('#22c55e');
-    document.body.appendChild(box);
+    getUIRoot().appendChild(box);
   }
   positionOverlayOnElement(box, el);
   if (rafId === null) tick();

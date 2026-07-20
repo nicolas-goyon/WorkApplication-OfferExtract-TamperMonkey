@@ -1,4 +1,5 @@
 /** Minimal floating-button + toast helper, shared by every site module. */
+import { getUIRoot } from '../dom/uiRoot';
 
 export interface NotifierOptions {
   durationMs?: number;
@@ -22,7 +23,7 @@ export function notify(message: string, options: NotifierOptions = {}): void {
     boxShadow: '0 2px 8px rgba(0,0,0,.25)',
     maxWidth: '320px',
   } satisfies Partial<CSSStyleDeclaration>);
-  document.body.appendChild(toast);
+  getUIRoot().appendChild(toast);
   setTimeout(() => toast.remove(), durationMs);
 }
 

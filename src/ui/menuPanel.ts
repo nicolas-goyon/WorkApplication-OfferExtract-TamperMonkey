@@ -1,5 +1,6 @@
 /** Tabbed menu panel, opened by either the floating button or the Tampermonkey menu command. */
 import { getButtonCorner } from '../core/buttonPosition';
+import { getUIRoot } from '../shared/dom/uiRoot';
 import { cornerStyles } from './cornerStyles';
 
 export type MenuTabId = 'job-extraction' | 'sites' | 'settings';
@@ -47,7 +48,8 @@ export function toggleMenu(): void {
 }
 
 function buildPanel(): void {
-  document.getElementById(PANEL_ID)?.remove();
+  const root = getUIRoot();
+  root.getElementById(PANEL_ID)?.remove();
   tabButtons.clear();
 
   const panel = document.createElement('div');
@@ -123,7 +125,7 @@ function buildPanel(): void {
 
   panel.appendChild(nav);
   panel.appendChild(content);
-  document.body.appendChild(panel);
+  root.appendChild(panel);
 
   panelEl = panel;
   contentEl = content;

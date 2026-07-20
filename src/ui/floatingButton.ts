@@ -1,6 +1,7 @@
 /** Draggable floating button: click opens the menu, drag snaps to the nearest corner. */
 import { BUTTON_CORNER_KEY, getButtonCorner, setButtonCorner, type Corner } from '../core/buttonPosition';
 import { onValueChange } from '../core/storage';
+import { getUIRoot } from '../shared/dom/uiRoot';
 import { cornerStyles } from './cornerStyles';
 
 export interface FloatingButtonOptions {
@@ -15,7 +16,8 @@ const DRAG_THRESHOLD = 6;
 
 /** Installs the button. No-op if one with this id is already in the document. */
 export function installFloatingButton({ id, label, onClick }: FloatingButtonOptions): void {
-  if (document.getElementById(id)) return;
+  const root = getUIRoot();
+  if (root.getElementById(id)) return;
 
   const button = document.createElement('button');
   button.id = id;
@@ -42,7 +44,7 @@ export function installFloatingButton({ id, label, onClick }: FloatingButtonOpti
   } satisfies Partial<CSSStyleDeclaration>);
   Object.assign(button.style, cornerStyles(getButtonCorner(), MARGIN));
 
-  document.body.appendChild(button);
+  root.appendChild(button);
 
   button.addEventListener('pointerdown', (downEvent) => {
     let dragging = false;
@@ -101,7 +103,7 @@ export function installFloatingButton({ id, label, onClick }: FloatingButtonOpti
 
 /** Removes the button (if present). Used when a site is marked as not job-related. */
 export function removeFloatingButton(id: string): void {
-  document.getElementById(id)?.remove();
+  getUIRoot().getElementById(id)?.remove();
 }
 
 function nearestCorner(rect: DOMRect): Corner {
