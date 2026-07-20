@@ -9,13 +9,14 @@ import * as Generic from './sites/generic';
 export { Generic };
 
 import { registerMenuCommand } from './core/menuCommand';
-import { hasAskedForSite } from './core/siteStatus';
-import { installFloatingButton } from './ui/floatingButton';
+import { seedDefaultJobSitesOnce } from './core/seedDefaultSites';
+import { getSiteStatus, hasAskedForSite, onSiteStatusChange } from './core/siteStatus';
+import { installFloatingButton, removeFloatingButton } from './ui/floatingButton';
 import { openMenu, registerMenuTabs, toggleMenu } from './ui/menuPanel';
 import { showSitePrompt } from './ui/sitePrompt';
 import { jobExtractionTab } from './ui/tabs/jobExtractionTab';
 import { settingsTab } from './ui/tabs/settingsTab';
-import { observeAndReinstallButton } from './shared/ui/notify';
+import { sitesTab } from './ui/tabs/sitesTab';
 
 const BUTTON_ID = 'offerextract-button';
 
@@ -29,23 +30,45 @@ export interface InitConfig {
 /**
  * Call from your local Tampermonkey script. Installs the floating,
  * draggable button and the matching Tampermonkey menu command — both open
- * the same menu panel (nav bar: Job extraction, Settings). On a hostname
- * visited for the first time, also asks once whether it's job-related and
- * remembers the answer from then on. Runs on every site; nothing is
- * submitted or modified on the page.
+ * the same menu panel (nav bar: Job extraction, Sites, Settings). On a
+ * hostname visited for the first time, also asks once whether it's
+ * job-related and remembers the answer from then on. The very first time
+ * the plugin ever runs, it also pre-seeds a starter list of common job
+ * boards/ATS hostnames (see core/defaultJobSites.ts) as job sites.
+ *
+ * If a hostname is marked as *not* job-related, the button stays hidden and
+ * nothing else runs on that site — the Tampermonkey menu command is the
+ * only way in, so the site can still be reclassified from the menu.
+ * Runs on every site; nothing is submitted or modified on the page.
  */
 export function init(config: InitConfig = {}): void {
-  registerMenuTabs([jobExtractionTab, settingsTab]);
+  // Tampermonkey runs @require'd code in every frame unless @noframes is
+  // set. Job sites commonly embed iframes (ads, chat widgets, ATS embeds),
+  // which would otherwise each get their own button/menu/prompt. The button
+  // only ever makes sense once per page, so skip everything in subframes.
+  if (window.self !== window.top) return;
 
-  const install = () =>
-    installFloatingButton({
-      id: BUTTON_ID,
-      label: config.buttonLabel ?? '☰',
-      onClick: toggleMenu,
-    });
+  seedDefaultJobSitesOnce();
 
-  install();
-  //observeAndReinstallButton(install);
+  registerMenuTabs([jobExtractionTab, sitesTab, settingsTab]);
+
+  const applyButtonVisibility = (isJobSite: boolean | undefined) => {
+    if (isJobSite === false) {
+      removeFloatingButton(BUTTON_ID);
+    } else {
+      installFloatingButton({
+        id: BUTTON_ID,
+        label: config.buttonLabel ?? '☰',
+        onClick: toggleMenu,
+      });
+    }
+  };
+
+  applyButtonVisibility(getSiteStatus(location.hostname));
+
+  onSiteStatusChange((hostname, isJobSite) => {
+    if (hostname === location.hostname) applyButtonVisibility(isJobSite);
+  });
 
   registerMenuCommand(config.menuCommandLabel ?? 'Open Offer Extract menu', openMenu);
 

@@ -26,11 +26,3 @@ export function notify(message: string, options: NotifierOptions = {}): void {
   setTimeout(() => toast.remove(), durationMs);
 }
 
-/** Re-installs the button whenever the SPA wipes the DOM subtree it lived in. */
-export function observeAndReinstallButton(install: () => void): void {
-  const observer = new MutationObserver(() => {
-    if (!document.body) return;
-    install();
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-}

@@ -82,6 +82,59 @@ var TMOfferExtract = (() => {
     }
   }
 
+  // src/core/defaultJobSites.ts
+  var DEFAULT_JOB_SITE_HOSTNAMES = [
+    // Global job boards
+    "linkedin.com",
+    "indeed.com",
+    "glassdoor.com",
+    "monster.com",
+    "ziprecruiter.com",
+    "careerbuilder.com",
+    "simplyhired.com",
+    "dice.com",
+    "wellfound.com",
+    "remote.co",
+    "weworkremotely.com",
+    "flexjobs.com",
+    "remoteok.com",
+    "himalayas.app",
+    "otta.com",
+    "hiringcafe.com",
+    "workatastartup.com",
+    // Regional job boards
+    "seek.com.au",
+    "jobstreet.com",
+    "reed.co.uk",
+    "totaljobs.com",
+    "cv-library.co.uk",
+    "stepstone.com",
+    "xing.com",
+    "welcometothejungle.com",
+    "jobteaser.com",
+    "apec.fr",
+    "francetravail.fr",
+    "hellowork.com",
+    "cadremploi.fr",
+    "keljob.com",
+    // ATS / careers platforms
+    "greenhouse.io",
+    "lever.co",
+    "smartrecruiters.com",
+    "jobvite.com",
+    "icims.com",
+    "workable.com",
+    "breezy.hr",
+    "recruitee.com",
+    "teamtailor.com",
+    "jazzhr.com",
+    "bamboohr.com",
+    "ashbyhq.com",
+    "personio.de",
+    "personio.com",
+    "myworkdayjobs.com"
+  ];
+
   // src/core/storage.ts
   function hasGMStorage() {
     return typeof GM_getValue === "function" && typeof GM_setValue === "function";
@@ -116,8 +169,12 @@ var TMOfferExtract = (() => {
 
   // src/core/siteStatus.ts
   var SITE_STATUS_KEY = "offerextract:siteJobStatus";
+  var listeners = /* @__PURE__ */ new Set();
   function readMap() {
     return getValue(SITE_STATUS_KEY, {});
+  }
+  function notify(hostname, isJobSite) {
+    for (const listener of listeners) listener(hostname, isJobSite);
   }
   function getSiteStatus(hostname) {
     return readMap()[hostname];
@@ -129,11 +186,44 @@ var TMOfferExtract = (() => {
     const map = readMap();
     map[hostname] = isJobSite;
     setValue(SITE_STATUS_KEY, map);
+    notify(hostname, isJobSite);
   }
   function clearSiteStatus(hostname) {
     const map = readMap();
     delete map[hostname];
     setValue(SITE_STATUS_KEY, map);
+    notify(hostname, void 0);
+  }
+  function onSiteStatusChange(listener) {
+    listeners.add(listener);
+  }
+  function getAllSiteStatuses() {
+    return Object.entries(readMap()).map(([hostname, isJobSite]) => ({ hostname, isJobSite })).sort((a, b) => a.hostname.localeCompare(b.hostname));
+  }
+  function renameSiteHostname(oldHostname, newHostname) {
+    const trimmed = newHostname.trim();
+    if (!trimmed || trimmed === oldHostname) return;
+    const map = readMap();
+    if (!(oldHostname in map)) return;
+    const isJobSite = map[oldHostname];
+    delete map[oldHostname];
+    map[trimmed] = isJobSite;
+    setValue(SITE_STATUS_KEY, map);
+    notify(oldHostname, void 0);
+    notify(trimmed, isJobSite);
+  }
+
+  // src/core/seedDefaultSites.ts
+  var SEEDED_KEY = "offerextract:hasSeededDefaultSites";
+  function seedDefaultJobSitesOnce() {
+    const alreadySeeded = getValue(SEEDED_KEY, false);
+    if (alreadySeeded) return;
+    for (const hostname of DEFAULT_JOB_SITE_HOSTNAMES) {
+      if (getSiteStatus(hostname) === void 0) {
+        setSiteStatus(hostname, true);
+      }
+    }
+    setValue(SEEDED_KEY, true);
   }
 
   // src/core/buttonPosition.ts
@@ -239,6 +329,9 @@ var TMOfferExtract = (() => {
       Object.assign(button.style, cornerStyles(corner, MARGIN));
     });
   }
+  function removeFloatingButton(id) {
+    document.getElementById(id)?.remove();
+  }
   function nearestCorner(rect) {
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -282,8 +375,8 @@ var TMOfferExtract = (() => {
     Object.assign(panel.style, {
       position: "fixed",
       zIndex: "2147483647",
-      width: "300px",
-      maxHeight: "70vh",
+      width: "440px",
+      maxHeight: "78vh",
       background: "#111827",
       color: "#f9fafb",
       borderRadius: "12px",
@@ -541,26 +634,230 @@ var TMOfferExtract = (() => {
     });
   }
 
-  // src/shared/ui/notify.ts
-  function observeAndReinstallButton(install) {
-    const observer = new MutationObserver(() => {
-      if (!document.body) return;
-      install();
+  // src/ui/tabs/sitesTab.ts
+  var sitesTab = {
+    id: "sites",
+    label: "Sites",
+    render(container) {
+      const searchInput = document.createElement("input");
+      searchInput.type = "search";
+      searchInput.placeholder = "Search sites\u2026";
+      Object.assign(searchInput.style, {
+        display: "block",
+        width: "100%",
+        boxSizing: "border-box",
+        padding: "8px 10px",
+        marginBottom: "10px",
+        borderRadius: "6px",
+        border: "1px solid rgba(255,255,255,.2)",
+        background: "transparent",
+        color: "#f9fafb",
+        font: "inherit"
+      });
+      const countLabel = document.createElement("p");
+      Object.assign(countLabel.style, {
+        margin: "0 0 8px",
+        color: "#9ca3af",
+        fontSize: "12px"
+      });
+      const tableWrap = document.createElement("div");
+      Object.assign(tableWrap.style, {
+        maxHeight: "46vh",
+        overflowY: "auto"
+      });
+      const table = document.createElement("table");
+      Object.assign(table.style, {
+        width: "100%",
+        borderCollapse: "collapse"
+      });
+      const thead = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      for (const text of ["Hostname", "Status", "Actions"]) {
+        const th = document.createElement("th");
+        th.textContent = text;
+        Object.assign(th.style, {
+          position: "sticky",
+          top: "0",
+          textAlign: "left",
+          padding: "6px 8px",
+          background: "#111827",
+          borderBottom: "1px solid rgba(255,255,255,.15)",
+          fontWeight: "600",
+          fontSize: "12px",
+          color: "#9ca3af"
+        });
+        headRow.appendChild(th);
+      }
+      thead.appendChild(headRow);
+      const tbody = document.createElement("tbody");
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      tableWrap.appendChild(table);
+      const emptyState = document.createElement("p");
+      Object.assign(emptyState.style, {
+        margin: "10px 0 0",
+        color: "#9ca3af"
+      });
+      const renderRows = () => {
+        const query = searchInput.value.trim().toLowerCase();
+        const sites = getAllSiteStatuses().filter((site) => site.hostname.toLowerCase().includes(query));
+        countLabel.textContent = `${sites.length} site${sites.length === 1 ? "" : "s"}`;
+        tbody.innerHTML = "";
+        emptyState.remove();
+        if (sites.length === 0) {
+          emptyState.textContent = query ? "No sites match." : "No sites classified yet.";
+          container.appendChild(emptyState);
+          return;
+        }
+        for (const site of sites) {
+          tbody.appendChild(buildRow(site.hostname, site.isJobSite, renderRows));
+        }
+      };
+      searchInput.addEventListener("input", renderRows);
+      container.appendChild(searchInput);
+      container.appendChild(countLabel);
+      container.appendChild(tableWrap);
+      renderRows();
+    }
+  };
+  function buildRow(hostname, isJobSite, refresh) {
+    const row = document.createElement("tr");
+    Object.assign(row.style, {
+      borderBottom: "1px solid rgba(255,255,255,.08)"
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    const nameCell = document.createElement("td");
+    Object.assign(nameCell.style, {
+      padding: "6px 8px",
+      wordBreak: "break-all",
+      verticalAlign: "middle"
+    });
+    const nameText = document.createElement("span");
+    nameText.textContent = hostname;
+    nameCell.appendChild(nameText);
+    const statusCell = document.createElement("td");
+    Object.assign(statusCell.style, { padding: "6px 8px", verticalAlign: "middle" });
+    const statusButton = document.createElement("button");
+    statusButton.type = "button";
+    statusButton.title = "Click to toggle";
+    statusButton.textContent = isJobSite ? "Job site" : "Not a job site";
+    styleStatusTag(statusButton, isJobSite);
+    statusButton.addEventListener("click", () => {
+      setSiteStatus(hostname, !isJobSite);
+      refresh();
+    });
+    statusCell.appendChild(statusButton);
+    const actionsCell = document.createElement("td");
+    Object.assign(actionsCell.style, {
+      padding: "6px 8px",
+      whiteSpace: "nowrap",
+      textAlign: "right",
+      verticalAlign: "middle"
+    });
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.textContent = "Edit";
+    styleActionButton(editButton);
+    editButton.addEventListener("click", startEdit);
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.textContent = "Remove";
+    styleActionButton(removeButton);
+    removeButton.addEventListener("click", () => {
+      clearSiteStatus(hostname);
+      refresh();
+    });
+    actionsCell.appendChild(editButton);
+    actionsCell.appendChild(removeButton);
+    row.appendChild(nameCell);
+    row.appendChild(statusCell);
+    row.appendChild(actionsCell);
+    function startEdit() {
+      nameCell.innerHTML = "";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = hostname;
+      Object.assign(input.style, {
+        width: "100%",
+        boxSizing: "border-box",
+        padding: "4px 6px",
+        borderRadius: "4px",
+        border: "1px solid rgba(255,255,255,.3)",
+        background: "#1f2937",
+        color: "#f9fafb",
+        font: "inherit"
+      });
+      nameCell.appendChild(input);
+      input.focus();
+      input.select();
+      let committed = false;
+      const commit = () => {
+        if (committed) return;
+        committed = true;
+        const next = input.value.trim();
+        if (next && next !== hostname) {
+          renameSiteHostname(hostname, next);
+        }
+        refresh();
+      };
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") commit();
+        if (event.key === "Escape") {
+          committed = true;
+          refresh();
+        }
+      });
+      input.addEventListener("blur", commit);
+    }
+    return row;
+  }
+  function styleStatusTag(button, isJobSite) {
+    Object.assign(button.style, {
+      font: "inherit",
+      fontSize: "12px",
+      padding: "4px 10px",
+      borderRadius: "999px",
+      border: "none",
+      background: isJobSite ? "#2563eb" : "#374151",
+      color: "#fff",
+      cursor: "pointer",
+      whiteSpace: "nowrap"
+    });
+  }
+  function styleActionButton(button) {
+    Object.assign(button.style, {
+      font: "inherit",
+      fontSize: "12px",
+      padding: "4px 8px",
+      marginLeft: "6px",
+      borderRadius: "6px",
+      border: "1px solid rgba(255,255,255,.2)",
+      background: "transparent",
+      color: "#f9fafb",
+      cursor: "pointer"
+    });
   }
 
   // src/index.ts
   var BUTTON_ID = "offerextract-button";
   function init(config = {}) {
-    registerMenuTabs([jobExtractionTab, settingsTab]);
-    const install = () => installFloatingButton({
-      id: BUTTON_ID,
-      label: config.buttonLabel ?? "\u2630",
-      onClick: toggleMenu
+    if (window.self !== window.top) return;
+    seedDefaultJobSitesOnce();
+    registerMenuTabs([jobExtractionTab, sitesTab, settingsTab]);
+    const applyButtonVisibility = (isJobSite) => {
+      if (isJobSite === false) {
+        removeFloatingButton(BUTTON_ID);
+      } else {
+        installFloatingButton({
+          id: BUTTON_ID,
+          label: config.buttonLabel ?? "\u2630",
+          onClick: toggleMenu
+        });
+      }
+    };
+    applyButtonVisibility(getSiteStatus(location.hostname));
+    onSiteStatusChange((hostname, isJobSite) => {
+      if (hostname === location.hostname) applyButtonVisibility(isJobSite);
     });
-    install();
-    observeAndReinstallButton(install);
     registerMenuCommand(config.menuCommandLabel ?? "Open Offer Extract menu", openMenu);
     if (!hasAskedForSite(location.hostname)) {
       showSitePrompt();

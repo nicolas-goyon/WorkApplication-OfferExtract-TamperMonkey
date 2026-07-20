@@ -104,6 +104,11 @@ export function installFloatingButton({ id, label, onClick }: FloatingButtonOpti
   });
 }
 
+/** Removes the button (if present). Used when a site is marked as not job-related. */
+export function removeFloatingButton(id: string): void {
+  document.getElementById(id)?.remove();
+}
+
 function nearestCorner(rect: DOMRect): Corner {
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;

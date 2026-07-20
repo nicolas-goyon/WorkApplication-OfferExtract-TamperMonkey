@@ -4,6 +4,7 @@
 // @version      1.0.0
 // @description  Floating draggable button + Tampermonkey menu for Offer Extract. Job extraction is a placeholder for now; nothing is submitted or modified on the page.
 // @match        *://*/*
+// @noframes
 // @run-at       document-idle
 // @grant        unsafeWindow
 // @grant        GM_getValue

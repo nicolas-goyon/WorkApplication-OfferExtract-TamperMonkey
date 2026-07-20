@@ -68,6 +68,7 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md#adding-a-new-site).
 ## Roadmap
 
 - [x] Floating draggable button + Tampermonkey menu command, per-site job classification prompt.
+- [x] Sites tab: searchable table of every classified hostname, with rename/toggle/remove; starter list of common job boards/ATS pre-seeded on first run.
 - [ ] Wire the generic/site extractors into the "Job extraction" tab (next feature).
 
 ## Disclaimer

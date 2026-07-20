@@ -2,7 +2,7 @@
 import { getButtonCorner } from '../core/buttonPosition';
 import { cornerStyles } from './cornerStyles';
 
-export type MenuTabId = 'job-extraction' | 'settings';
+export type MenuTabId = 'job-extraction' | 'sites' | 'settings';
 
 export interface MenuTab {
   id: MenuTabId;
@@ -51,8 +51,8 @@ function buildPanel(): void {
   Object.assign(panel.style, {
     position: 'fixed',
     zIndex: '2147483647',
-    width: '300px',
-    maxHeight: '70vh',
+    width: '440px',
+    maxHeight: '78vh',
     background: '#111827',
     color: '#f9fafb',
     borderRadius: '12px',

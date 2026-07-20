@@ -20,18 +20,25 @@ src/
   core/                    App state + Tampermonkey glue, no DOM
     storage.ts                GM_getValue/GM_setValue/GM_addValueChangeListener wrapper
                                (falls back to localStorage outside a userscript context)
-    siteStatus.ts             Per-hostname "is this a job site?" map
+    siteStatus.ts             Per-hostname "is this a job site?" map; also list-all/rename,
+                               plus an in-tab pub/sub (onSiteStatusChange) so UI reacts live
+    defaultJobSites.ts        Starter list of common job board/ATS hostnames
+    seedDefaultSites.ts       One-time seed of defaultJobSites.ts into siteStatus, guarded
+                               by a persisted flag so it only ever runs once
     buttonPosition.ts         Persisted floating-button corner
     menuCommand.ts            GM_registerMenuCommand wrapper
 
   ui/                      DOM pieces, wired to core/ but no business logic of their own
-    floatingButton.ts         Draggable button; snaps to the nearest corner on release
+    floatingButton.ts         Draggable button; snaps to the nearest corner on release;
+                               hidden entirely on hostnames marked not job-related
     menuPanel.ts              Tabbed panel (nav bar + content), opened by the button or
                                the Tampermonkey menu command
     sitePrompt.ts             One-off "is this a job site?" prompt
     cornerStyles.ts           Shared left/right/top/bottom styles for a given corner
     tabs/
-      jobExtractionTab.ts       Job extraction tab (placeholder + site classification toggle)
+      jobExtractionTab.ts       Job extraction tab (placeholder + current-site classification)
+      sitesTab.ts               Sites tab: searchable table of every classified hostname,
+                                 with rename/toggle/remove per row
       settingsTab.ts            Settings tab (reset button position, forget this site)
 
   shared/                  Generic utilities, reusable across all site modules
