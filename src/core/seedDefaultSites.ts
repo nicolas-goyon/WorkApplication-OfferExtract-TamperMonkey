@@ -12,7 +12,9 @@ import { getValue, setValue } from './storage';
 
 const SEEDED_KEY = 'offerextract:hasSeededDefaultSites';
 
-export function seedDefaultJobSitesOnce(): void {
+export function seedDefaultJobSitesOnce(loadDefaultSites: boolean): void {
+  if (!loadDefaultSites) return;
+
   const alreadySeeded = getValue<boolean>(SEEDED_KEY, false);
   if (alreadySeeded) return;
 

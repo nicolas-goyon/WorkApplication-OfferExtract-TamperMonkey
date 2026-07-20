@@ -25,6 +25,7 @@ export interface InitConfig {
   buttonLabel?: string;
   /** Label of the Tampermonkey menu command. Default: "Open Offer Extract menu". */
   menuCommandLabel?: string;
+  loadDefaultJobSites?: boolean;
 }
 
 /**
@@ -48,7 +49,7 @@ export function init(config: InitConfig = {}): void {
   // only ever makes sense once per page, so skip everything in subframes.
   if (window.self !== window.top) return;
 
-  seedDefaultJobSitesOnce();
+  seedDefaultJobSitesOnce(config.loadDefaultJobSites ?? false);
 
   registerMenuTabs([jobExtractionTab, sitesTab, settingsTab]);
 
@@ -66,9 +67,9 @@ export function init(config: InitConfig = {}): void {
 
   applyButtonVisibility(getSiteStatus(location.hostname));
 
-  onSiteStatusChange((hostname, isJobSite) => {
-    if (hostname === location.hostname) applyButtonVisibility(isJobSite);
-  });
+  // onSiteStatusChange((hostname, isJobSite) => {
+  //   if (hostname === location.hostname) applyButtonVisibility(isJobSite);
+  // });
 
   registerMenuCommand(config.menuCommandLabel ?? 'Open Offer Extract menu', openMenu);
 

@@ -27,5 +27,6 @@
   window.TMOfferExtract.init({
     // buttonLabel: '☰',                            // default
     // menuCommandLabel: 'Open Offer Extract menu', // default
+    loadDefaultJobSites: false, // default: false
   });
 })();

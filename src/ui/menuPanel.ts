@@ -8,6 +8,8 @@ export interface MenuTab {
   id: MenuTabId;
   label: string;
   render: (container: HTMLElement) => void;
+  /** Called when this tab stops being the visible one (switching tabs, or closing the menu). */
+  onDeactivate?: () => void;
 }
 
 const PANEL_ID = 'offerextract-menu-panel';
@@ -33,7 +35,9 @@ export function openMenu(): void {
 }
 
 export function closeMenu(): void {
-  if (panelEl) panelEl.style.display = 'none';
+  if (!panelEl) return;
+  deactivateCurrentTab();
+  panelEl.style.display = 'none';
 }
 
 export function toggleMenu(): void {
@@ -87,6 +91,8 @@ function buildPanel(): void {
       font: 'inherit',
     } satisfies Partial<CSSStyleDeclaration>);
     button.addEventListener('click', () => {
+      if (activeTab === tab.id) return;
+      deactivateCurrentTab();
       activeTab = tab.id;
       renderActiveTab();
     });
@@ -121,6 +127,10 @@ function buildPanel(): void {
 
   panelEl = panel;
   contentEl = content;
+}
+
+function deactivateCurrentTab(): void {
+  tabs.find((tab) => tab.id === activeTab)?.onDeactivate?.();
 }
 
 function renderActiveTab(): void {

@@ -32,11 +32,18 @@ src/
     floatingButton.ts         Draggable button; snaps to the nearest corner on release;
                                hidden entirely on hostnames marked not job-related
     menuPanel.ts              Tabbed panel (nav bar + content), opened by the button or
-                               the Tampermonkey menu command
+                               the Tampermonkey menu command. MenuTab has an optional
+                               onDeactivate() hook, called on tab switch / menu close.
     sitePrompt.ts             One-off "is this a job site?" prompt
     cornerStyles.ts           Shared left/right/top/bottom styles for a given corner
+    elementInspector.ts       DevTools-style hover-to-highlight/click-to-select picker;
+                               resolves with the clicked Element, or cancels on Esc
+    elementSelectionHighlight.ts  Persistent highlight box pinned to the picked element,
+                                   repositioned every frame so it tracks scroll/layout shifts
     tabs/
-      jobExtractionTab.ts       Job extraction tab (placeholder + current-site classification)
+      jobExtractionTab.ts       Job extraction tab: current-site classification, plus the
+                                 "Fetch offer" picker flow (pick element -> range slider
+                                 climbs its ancestor chain -> copy outer HTML)
       sitesTab.ts               Sites tab: searchable table of every classified hostname,
                                  with rename/toggle/remove per row
       settingsTab.ts            Settings tab (reset button position, forget this site)
@@ -47,6 +54,9 @@ src/
       root.ts                 getRootWindow() (unsafeWindow || window)
     ui/
       notify.ts               notify() toast, observeAndReinstallButton()
+      elementOverlay.ts        createOverlayBox()/positionOverlayOnElement(): fixed-position
+                                highlight box snapped to an element's bounding rect, shared by
+                                the hover picker and the persistent selection highlight
 
   sites/
     generic/                One always-available module: JSON-LD JobPosting -> title/meta fallback
@@ -57,7 +67,7 @@ src/
     <site-name>/             One subfolder per job site/ATS once added, same shape as generic/
 ```
 
-Extraction (`Generic.extract()` and friends under `sites/`) isn't wired into the UI yet — the "Job extraction" tab is a placeholder plus the site-classification toggle. That wiring is the next feature.
+The "Job extraction" tab now has a manual element picker ("Fetch offer" button) for grabbing the HTML of a job posting by hand: click it, hover/click an element on the page (hover highlight follows the mouse, Esc cancels), then use the range slider to walk up its ancestor chain until the highlighted box covers the right section, and copy the resulting outer HTML. Wiring that selection into `Generic.extract()` / a structured `OfferData` result is the next step — right now it's a raw-HTML capture tool, not a parser.
 
 ## Public API of a site module
 

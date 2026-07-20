@@ -215,7 +215,8 @@ var TMOfferExtract = (() => {
 
   // src/core/seedDefaultSites.ts
   var SEEDED_KEY = "offerextract:hasSeededDefaultSites";
-  function seedDefaultJobSitesOnce() {
+  function seedDefaultJobSitesOnce(loadDefaultSites) {
+    if (!loadDefaultSites) return;
     const alreadySeeded = getValue(SEEDED_KEY, false);
     if (alreadySeeded) return;
     for (const hostname of DEFAULT_JOB_SITE_HOSTNAMES) {
@@ -360,7 +361,9 @@ var TMOfferExtract = (() => {
     renderActiveTab();
   }
   function closeMenu() {
-    if (panelEl) panelEl.style.display = "none";
+    if (!panelEl) return;
+    deactivateCurrentTab();
+    panelEl.style.display = "none";
   }
   function toggleMenu() {
     const isOpen = !!panelEl && panelEl.style.display !== "none";
@@ -409,6 +412,8 @@ var TMOfferExtract = (() => {
         font: "inherit"
       });
       button.addEventListener("click", () => {
+        if (activeTab === tab.id) return;
+        deactivateCurrentTab();
         activeTab = tab.id;
         renderActiveTab();
       });
@@ -440,6 +445,9 @@ var TMOfferExtract = (() => {
     panelEl = panel;
     contentEl = content;
   }
+  function deactivateCurrentTab() {
+    tabs.find((tab) => tab.id === activeTab)?.onDeactivate?.();
+  }
   function renderActiveTab() {
     if (!contentEl) return;
     for (const tab of tabs) {
@@ -459,9 +467,9 @@ var TMOfferExtract = (() => {
   var PROMPT_MARGIN = 84;
   function showSitePrompt(onAnswered) {
     if (document.getElementById(PROMPT_ID)) return;
-    const box = document.createElement("div");
-    box.id = PROMPT_ID;
-    Object.assign(box.style, {
+    const box2 = document.createElement("div");
+    box2.id = PROMPT_ID;
+    Object.assign(box2.style, {
       position: "fixed",
       zIndex: "2147483647",
       width: "260px",
@@ -472,16 +480,16 @@ var TMOfferExtract = (() => {
       padding: "16px",
       font: "13px/1.4 system-ui, sans-serif"
     });
-    Object.assign(box.style, cornerStyles(getButtonCorner(), PROMPT_MARGIN));
+    Object.assign(box2.style, cornerStyles(getButtonCorner(), PROMPT_MARGIN));
     const question = document.createElement("p");
     question.textContent = "Is this a job-related website (job board, ATS, application form)?";
     Object.assign(question.style, { margin: "0 0 12px" });
-    box.appendChild(question);
+    box2.appendChild(question);
     const row = document.createElement("div");
     Object.assign(row.style, { display: "flex", gap: "8px" });
     const answer = (isJobSite) => {
       setSiteStatus(location.hostname, isJobSite);
-      box.remove();
+      box2.remove();
       onAnswered?.(isJobSite);
     };
     const yesButton = document.createElement("button");
@@ -496,8 +504,8 @@ var TMOfferExtract = (() => {
     noButton.addEventListener("click", () => answer(false));
     row.appendChild(yesButton);
     row.appendChild(noButton);
-    box.appendChild(row);
-    document.body.appendChild(box);
+    box2.appendChild(row);
+    document.body.appendChild(box2);
   }
   function styleAnswerButton(button, background) {
     Object.assign(button.style, {
@@ -512,7 +520,168 @@ var TMOfferExtract = (() => {
     });
   }
 
+  // src/shared/ui/notify.ts
+  function notify2(message, options = {}) {
+    const { durationMs = 4e3 } = options;
+    const toast = document.createElement("div");
+    toast.textContent = message;
+    Object.assign(toast.style, {
+      position: "fixed",
+      right: "16px",
+      bottom: "16px",
+      zIndex: "2147483647",
+      background: "#1f2937",
+      color: "#f9fafb",
+      padding: "10px 14px",
+      borderRadius: "8px",
+      font: "13px/1.4 system-ui, sans-serif",
+      boxShadow: "0 2px 8px rgba(0,0,0,.25)",
+      maxWidth: "320px"
+    });
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), durationMs);
+  }
+
+  // src/shared/ui/elementOverlay.ts
+  function createOverlayBox(color, zIndex = 2147483646) {
+    const box2 = document.createElement("div");
+    Object.assign(box2.style, {
+      position: "fixed",
+      zIndex: String(zIndex),
+      pointerEvents: "none",
+      border: `2px solid ${color}`,
+      background: `${color}26`,
+      boxSizing: "border-box",
+      display: "none"
+    });
+    return box2;
+  }
+  function positionOverlayOnElement(box2, el) {
+    const rect = el.getBoundingClientRect();
+    Object.assign(box2.style, {
+      display: "block",
+      top: `${rect.top}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`
+    });
+  }
+  function hideOverlayBox(box2) {
+    box2.style.display = "none";
+  }
+
+  // src/ui/elementInspector.ts
+  var OVERLAY_ID = "offerextract-inspect-overlay";
+  var BANNER_ID = "offerextract-inspect-banner";
+  var OWN_UI_SELECTOR = `#${OVERLAY_ID}, #${BANNER_ID}, #offerextract-menu-panel, #offerextract-button`;
+  function startInspecting(onSelect, onCancel) {
+    const overlay = createOverlayBox("#2563eb");
+    overlay.id = OVERLAY_ID;
+    const banner = createBanner();
+    document.body.appendChild(overlay);
+    document.body.appendChild(banner);
+    const previousCursor = document.documentElement.style.cursor;
+    document.documentElement.style.cursor = "crosshair";
+    let stopped = false;
+    const targetAt = (event) => {
+      const el = document.elementFromPoint(event.clientX, event.clientY);
+      return el && !el.closest(OWN_UI_SELECTOR) ? el : null;
+    };
+    const onMouseMove = (event) => {
+      const target = targetAt(event);
+      if (target) positionOverlayOnElement(overlay, target);
+      else hideOverlayBox(overlay);
+    };
+    const onClick = (event) => {
+      const target = targetAt(event);
+      if (!target) return;
+      event.preventDefault();
+      event.stopPropagation();
+      stop();
+      onSelect(target);
+    };
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      stop();
+      onCancel();
+    };
+    function stop() {
+      if (stopped) return;
+      stopped = true;
+      document.removeEventListener("mousemove", onMouseMove, true);
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.documentElement.style.cursor = previousCursor;
+      overlay.remove();
+      banner.remove();
+    }
+    document.addEventListener("mousemove", onMouseMove, true);
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return {
+      cancel: () => {
+        if (stopped) return;
+        stop();
+        onCancel();
+      }
+    };
+  }
+  function createBanner() {
+    const banner = document.createElement("div");
+    banner.id = BANNER_ID;
+    banner.textContent = "Click an element to select it \u2014 Esc to cancel";
+    Object.assign(banner.style, {
+      position: "fixed",
+      top: "16px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      zIndex: "2147483647",
+      background: "#111827",
+      color: "#f9fafb",
+      padding: "8px 16px",
+      borderRadius: "8px",
+      boxShadow: "0 2px 8px rgba(0,0,0,.35)",
+      font: "13px/1.4 system-ui, sans-serif",
+      pointerEvents: "none"
+    });
+    return banner;
+  }
+
+  // src/ui/elementSelectionHighlight.ts
+  var box = null;
+  var rafId = null;
+  var currentEl = null;
+  function showSelectionHighlight(el) {
+    currentEl = el;
+    if (!box) {
+      box = createOverlayBox("#22c55e");
+      document.body.appendChild(box);
+    }
+    positionOverlayOnElement(box, el);
+    if (rafId === null) tick();
+  }
+  function hideSelectionHighlight() {
+    currentEl = null;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    box?.remove();
+    box = null;
+  }
+  function tick() {
+    if (currentEl && box) positionOverlayOnElement(box, currentEl);
+    rafId = requestAnimationFrame(tick);
+  }
+
   // src/ui/tabs/jobExtractionTab.ts
+  var MAX_ANCESTOR_LEVELS = 12;
+  var PREVIEW_MAX_CHARS = 4e3;
+  var ancestorChain = [];
+  var level = 0;
+  function currentSelected() {
+    return ancestorChain[level] ?? null;
+  }
   var jobExtractionTab = {
     id: "job-extraction",
     label: "Job extraction",
@@ -534,11 +703,18 @@ var TMOfferExtract = (() => {
       noButton.textContent = "Not a job site";
       styleChoiceButton(yesButton);
       styleChoiceButton(noButton);
+      const divider = document.createElement("div");
+      Object.assign(divider.style, {
+        borderTop: "1px solid rgba(255,255,255,.1)",
+        margin: "0 0 14px"
+      });
+      const section = document.createElement("div");
       const refresh = () => {
         const status = getSiteStatus(hostname);
         statusLine.textContent = describeStatus(hostname, status);
         setActive(yesButton, status === true);
         setActive(noButton, status === false);
+        renderExtractionSection(section, status === true);
       };
       yesButton.addEventListener("click", () => {
         setSiteStatus(hostname, true);
@@ -550,18 +726,176 @@ var TMOfferExtract = (() => {
       });
       toggleRow.appendChild(yesButton);
       toggleRow.appendChild(noButton);
-      const placeholder = document.createElement("p");
-      placeholder.textContent = "Offer extraction is coming soon.";
-      Object.assign(placeholder.style, {
-        margin: "0",
-        color: "#9ca3af"
-      });
       container.appendChild(statusLine);
       container.appendChild(toggleRow);
-      container.appendChild(placeholder);
+      container.appendChild(divider);
+      container.appendChild(section);
       refresh();
+    },
+    onDeactivate() {
+      hideSelectionHighlight();
     }
   };
+  function renderExtractionSection(section, isJobSite) {
+    section.innerHTML = "";
+    if (!isJobSite) {
+      hideSelectionHighlight();
+      const message = document.createElement("p");
+      message.textContent = "Mark this site as a job site to enable offer extraction.";
+      Object.assign(message.style, { margin: "0", color: "#9ca3af" });
+      section.appendChild(message);
+      return;
+    }
+    const selected = currentSelected();
+    const pickRow = document.createElement("div");
+    Object.assign(pickRow.style, {
+      display: "flex",
+      gap: "8px",
+      marginBottom: "12px"
+    });
+    const pickButton = document.createElement("button");
+    pickButton.type = "button";
+    pickButton.textContent = selected ? "Re-pick element" : "Fetch offer";
+    styleActionButton(pickButton, true);
+    pickButton.addEventListener("click", () => startPicking());
+    pickRow.appendChild(pickButton);
+    if (selected) {
+      const clearButton = document.createElement("button");
+      clearButton.type = "button";
+      clearButton.textContent = "Clear";
+      styleActionButton(clearButton, false);
+      clearButton.addEventListener("click", () => {
+        ancestorChain = [];
+        level = 0;
+        hideSelectionHighlight();
+        renderExtractionSection(section, true);
+      });
+      pickRow.appendChild(clearButton);
+    }
+    section.appendChild(pickRow);
+    if (!selected) {
+      const hint = document.createElement("p");
+      hint.textContent = 'Click "Fetch offer", then click any element on the page (e.g. a paragraph of the description). Press Esc to cancel.';
+      Object.assign(hint.style, { margin: "0", color: "#9ca3af" });
+      section.appendChild(hint);
+      return;
+    }
+    showSelectionHighlight(selected);
+    const label = document.createElement("p");
+    Object.assign(label.style, {
+      margin: "0 0 6px",
+      fontFamily: "ui-monospace, SFMono-Regular, monospace",
+      fontSize: "12px",
+      color: "#93c5fd",
+      overflowWrap: "anywhere"
+    });
+    const sliderRow = document.createElement("div");
+    Object.assign(sliderRow.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      marginBottom: "12px"
+    });
+    const sliderCaption = document.createElement("span");
+    sliderCaption.textContent = "Zoom out";
+    Object.assign(sliderCaption.style, { color: "#9ca3af", flex: "0 0 auto" });
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = String(Math.max(ancestorChain.length - 1, 0));
+    slider.value = String(level);
+    slider.disabled = ancestorChain.length <= 1;
+    Object.assign(slider.style, { flex: "1" });
+    const sliderValue = document.createElement("span");
+    Object.assign(sliderValue.style, { color: "#9ca3af", flex: "0 0 auto", minWidth: "48px", textAlign: "right" });
+    const preview = document.createElement("pre");
+    Object.assign(preview.style, {
+      margin: "0 0 12px",
+      padding: "10px",
+      background: "#0b1220",
+      border: "1px solid rgba(255,255,255,.1)",
+      borderRadius: "8px",
+      maxHeight: "220px",
+      overflow: "auto",
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      fontFamily: "ui-monospace, SFMono-Regular, monospace",
+      fontSize: "11px",
+      color: "#d1d5db"
+    });
+    const copyButton = document.createElement("button");
+    copyButton.type = "button";
+    copyButton.textContent = "Copy selected HTML";
+    styleActionButton(copyButton, true);
+    copyButton.addEventListener("click", () => {
+      const el = currentSelected();
+      if (!el) return;
+      copyToClipboard(el.outerHTML);
+    });
+    const updateForCurrentLevel = () => {
+      const el = currentSelected();
+      if (!el) return;
+      label.textContent = describeElement(el);
+      sliderValue.textContent = `${level} / ${Math.max(ancestorChain.length - 1, 0)}`;
+      preview.textContent = truncate(el.outerHTML);
+      showSelectionHighlight(el);
+    };
+    slider.addEventListener("input", () => {
+      level = Number(slider.value);
+      updateForCurrentLevel();
+    });
+    sliderRow.appendChild(sliderCaption);
+    sliderRow.appendChild(slider);
+    sliderRow.appendChild(sliderValue);
+    section.appendChild(label);
+    section.appendChild(sliderRow);
+    section.appendChild(preview);
+    section.appendChild(copyButton);
+    updateForCurrentLevel();
+  }
+  function startPicking() {
+    hideSelectionHighlight();
+    closeMenu();
+    startInspecting(
+      (el) => {
+        ancestorChain = computeAncestorChain(el);
+        level = 0;
+        openMenu();
+      },
+      () => {
+        openMenu();
+      }
+    );
+  }
+  function computeAncestorChain(el) {
+    const chain = [el];
+    let current = el;
+    while (current.parentElement && chain.length < MAX_ANCESTOR_LEVELS) {
+      current = current.parentElement;
+      chain.push(current);
+      if (current === document.body) break;
+    }
+    return chain;
+  }
+  function describeElement(el) {
+    let out = `<${el.tagName.toLowerCase()}`;
+    if (el.id) out += ` id="${el.id}"`;
+    const cls = el.getAttribute("class")?.trim();
+    if (cls) out += ` class="${cls.length > 80 ? `${cls.slice(0, 80)}\u2026` : cls}"`;
+    return `${out}>`;
+  }
+  function truncate(text) {
+    return text.length > PREVIEW_MAX_CHARS ? `${text.slice(0, PREVIEW_MAX_CHARS)}
+\u2026 (truncated for preview \u2014 full HTML is copied)` : text;
+  }
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      notify2("Copied selected HTML to clipboard.");
+    } catch {
+      notify2("Could not copy \u2014 clipboard access was blocked.");
+    }
+  }
   function describeStatus(hostname, status) {
     if (status === true) return `${hostname} is marked as a job site.`;
     if (status === false) return `${hostname} is marked as not a job site.`;
@@ -574,6 +908,17 @@ var TMOfferExtract = (() => {
       borderRadius: "6px",
       border: "1px solid rgba(255,255,255,.2)",
       background: "transparent",
+      color: "#f9fafb",
+      cursor: "pointer",
+      font: "inherit"
+    });
+  }
+  function styleActionButton(button, primary) {
+    Object.assign(button.style, {
+      padding: "8px 14px",
+      borderRadius: "6px",
+      border: primary ? "none" : "1px solid rgba(255,255,255,.2)",
+      background: primary ? "#2563eb" : "transparent",
       color: "#f9fafb",
       cursor: "pointer",
       font: "inherit"
@@ -756,12 +1101,12 @@ var TMOfferExtract = (() => {
     const editButton = document.createElement("button");
     editButton.type = "button";
     editButton.textContent = "Edit";
-    styleActionButton(editButton);
+    styleActionButton2(editButton);
     editButton.addEventListener("click", startEdit);
     const removeButton = document.createElement("button");
     removeButton.type = "button";
     removeButton.textContent = "Remove";
-    styleActionButton(removeButton);
+    styleActionButton2(removeButton);
     removeButton.addEventListener("click", () => {
       clearSiteStatus(hostname);
       refresh();
@@ -823,7 +1168,7 @@ var TMOfferExtract = (() => {
       whiteSpace: "nowrap"
     });
   }
-  function styleActionButton(button) {
+  function styleActionButton2(button) {
     Object.assign(button.style, {
       font: "inherit",
       fontSize: "12px",
@@ -841,7 +1186,7 @@ var TMOfferExtract = (() => {
   var BUTTON_ID = "offerextract-button";
   function init(config = {}) {
     if (window.self !== window.top) return;
-    seedDefaultJobSitesOnce();
+    seedDefaultJobSitesOnce(config.loadDefaultJobSites ?? false);
     registerMenuTabs([jobExtractionTab, sitesTab, settingsTab]);
     const applyButtonVisibility = (isJobSite) => {
       if (isJobSite === false) {

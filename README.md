@@ -18,7 +18,7 @@ More sites are added incrementally under `src/sites/<site>/` — see `src/sites/
 
 1. This repository is public and served through the [jsDelivr](https://www.jsdelivr.com/) CDN, which serves files straight from GitHub tags.
 2. Your local Tampermonkey userscript loads the library with `@require`, then calls `window.TMOfferExtract.init({ ... })`.
-3. The library installs a small floating button (draggable, snaps to the nearest corner, position remembered across sites) plus a matching Tampermonkey menu command — both open the same menu panel, with tabs for **Job extraction** (placeholder for now — see [Roadmap](#roadmap)) and **Settings**. On any hostname visited for the first time, it also asks once whether the site is job-related and remembers the answer from then on. **It never submits or modifies the page.**
+3. The library installs a small floating button (draggable, snaps to the nearest corner, position remembered across sites) plus a matching Tampermonkey menu command — both open the same menu panel, with tabs for **Job extraction** and **Settings**. On a job site, the Job extraction tab has a "Fetch offer" button: click it, then click any element on the page (hover highlights it like a DevTools inspector, Esc cancels), and a range slider lets you walk up its ancestor chain until the highlighted box covers the section you want — then copy its HTML. On any hostname visited for the first time, it also asks once whether the site is job-related and remembers the answer from then on. **It never submits or modifies the page.**
 
 ## Installation (Tampermonkey)
 
@@ -69,7 +69,8 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md#adding-a-new-site).
 
 - [x] Floating draggable button + Tampermonkey menu command, per-site job classification prompt.
 - [x] Sites tab: searchable table of every classified hostname, with rename/toggle/remove; starter list of common job boards/ATS pre-seeded on first run.
-- [ ] Wire the generic/site extractors into the "Job extraction" tab (next feature).
+- [x] "Fetch offer" element picker in the Job extraction tab: hover/click to select, range slider to climb the ancestor chain, copy the resulting HTML.
+- [ ] Wire the generic/site extractors — and the picked HTML — into a structured, parsed `OfferData` result (next feature).
 
 ## Disclaimer
 
