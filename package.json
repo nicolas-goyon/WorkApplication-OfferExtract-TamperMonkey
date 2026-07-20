@@ -1,0 +1,16 @@
+{
+  "name": "tampermonkey-offerextract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript library that extracts job offer data from job application pages, loaded via Tampermonkey. Contains no personal data.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "build:watch": "node scripts/build.mjs --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5",
+    "typescript": "^5.5.4"
+  }
+}

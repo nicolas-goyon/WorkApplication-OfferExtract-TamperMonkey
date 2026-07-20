@@ -1,0 +1,105 @@
+name: Build & publish bundle (jsdelivr)
+
+# Builds the Tampermonkey bundle on every `vX.Y.Z` tag push and commits
+# `dist/` ON THAT SAME TAG, so jsdelivr can serve a frozen artifact:
+#   https://cdn.jsdelivr.net/gh/<user>/<repo>@vX.Y.Z/dist/tampermonkey-offerextract.js
+#
+# Release flow:
+#   1. git tag v1.0.0 && git push origin v1.0.0
+#   2. CI typechecks + builds + verifies the bundle, commits dist/, then
+#      force-moves the tag onto the build commit.
+#   3. The jsdelivr URL @v1.0.0 now contains dist/.
+#
+# Note: force-pushing the tag from this workflow uses the default
+# GITHUB_TOKEN, so GitHub does not re-trigger this workflow from that push
+# (built-in loop prevention) — the "already built?" guard below is just a
+# defensive no-op if that behavior ever changes.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to (re)build, e.g. v1.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve the tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      # Guard: if the commit the tag points to is already a build commit
+      # (dist/ present and up to date), stop here.
+      - name: Detect an already-built tag
+        id: guard
+        run: |
+          if git log -1 --pretty=%s | grep -q '^ci(build):'; then
+            echo "already_built=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_built=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node
+        if: steps.guard.outputs.already_built == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        if: steps.guard.outputs.already_built == 'false'
+        run: npm install
+
+      - name: Typecheck
+        if: steps.guard.outputs.already_built == 'false'
+        run: npm run typecheck
+
+      - name: Build
+        if: steps.guard.outputs.already_built == 'false'
+        run: npm run build
+
+      - name: Verify the bundle (present and non-empty)
+        if: steps.guard.outputs.already_built == 'false'
+        run: |
+          f=dist/tampermonkey-offerextract.js
+          test -s "$f" || { echo "::error::$f missing or empty"; exit 1; }
+          echo "OK: $f ($(wc -c < "$f") bytes)"
+
+      - name: Commit dist/ and reposition the tag
+        if: steps.guard.outputs.already_built == 'false'
+        env:
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f dist/
+          if git diff --cached --quiet; then
+            echo "No change in dist/, nothing to publish."
+            exit 0
+          fi
+          git commit -m "ci(build): dist for ${TAG}"
+          git tag -f "${TAG}"
+          git push origin "${TAG}" --force
