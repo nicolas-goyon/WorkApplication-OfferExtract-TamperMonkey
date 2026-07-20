@@ -45,7 +45,7 @@ export function init(config: InitConfig = {}): void {
     });
 
   install();
-  observeAndReinstallButton(install);
+  //observeAndReinstallButton(install);
 
   registerMenuCommand(config.menuCommandLabel ?? 'Open Offer Extract menu', openMenu);
 
