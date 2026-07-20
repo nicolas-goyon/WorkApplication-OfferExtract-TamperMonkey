@@ -773,7 +773,7 @@ var TMOfferExtract = (() => {
     if (!selected) {
       const hint = document.createElement("p");
       hint.textContent = 'Click "Fetch offer", then click any element on the page (e.g. a paragraph of the description). Press Esc to cancel.';
-      Object.assign(hint.style, { margin: "0", color: "#9ca3af" });
+      Object.assign(hint.style, { margin: "0", color: "#f9fafb" });
       section.appendChild(hint);
       return;
     }
@@ -783,7 +783,7 @@ var TMOfferExtract = (() => {
       margin: "0 0 6px",
       fontFamily: "ui-monospace, SFMono-Regular, monospace",
       fontSize: "12px",
-      color: "#93c5fd",
+      color: "#f9fafb",
       overflowWrap: "anywhere"
     });
     const sliderRow = document.createElement("div");
