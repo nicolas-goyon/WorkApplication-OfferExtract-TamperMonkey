@@ -232,8 +232,9 @@ ${lines.join("\n")}
   // src/sites/apec/selectors.ts
   var TITLE_SELECTOR = "apec-header-nav h1, h1";
   var DETAILS_LIST_SELECTOR = ".details-offer-list";
+  var OFFER_SUMMARY_SELECTOR = ".card-offer__text";
   var DESCRIPTION_SELECTOR = "apec-poste-informations";
-  var TEMPLATE_SECTION_SELECTORS = [TITLE_SELECTOR, DETAILS_LIST_SELECTOR, DESCRIPTION_SELECTOR];
+  var TEMPLATE_SECTION_SELECTORS = [TITLE_SELECTOR, OFFER_SUMMARY_SELECTOR, DESCRIPTION_SELECTOR];
   var SEE_MORE_SELECTOR = ".seeMore";
 
   // src/sites/apec/extract.ts
@@ -271,7 +272,7 @@ ${lines.join("\n")}
     const toggles = Array.from(scope.querySelectorAll(SEE_MORE_SELECTOR));
     if (toggles.length === 0) return;
     for (const toggle of toggles) {
-      const clickTarget = toggle.querySelector("label") ?? toggle;
+      const clickTarget = toggle.querySelector("label span") ?? toggle.querySelector("label") ?? toggle;
       clickTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     }
     await nextFrames(2);

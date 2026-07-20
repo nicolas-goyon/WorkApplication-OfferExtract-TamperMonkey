@@ -38,7 +38,12 @@ export async function expandCollapsedSections(scope: Element): Promise<void> {
   if (toggles.length === 0) return;
 
   for (const toggle of toggles) {
-    const clickTarget = toggle.querySelector('label') ?? toggle;
+    // The visible "Voir plus" text is a <span> nested inside the <label>;
+    // Angular's click handler is bound to that innermost element (or an
+    // ancestor), same as where a real click would land. Dispatching on the
+    // outer <label> instead misses a handler bound to the inner span, since
+    // clicks only bubble upward from the target, never down to children.
+    const clickTarget = toggle.querySelector('label span') ?? toggle.querySelector('label') ?? toggle;
     clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   }
 
