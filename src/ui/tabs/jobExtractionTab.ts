@@ -7,6 +7,7 @@
  * happy with the selection, at which point you can copy its cleaned text.
  */
 import { notify } from '../../shared/ui/notify';
+import { applyPromptConfig } from '../../core/promptConfig';
 import { getSiteStatus, setSiteStatus } from '../../core/siteStatus';
 import { elementToCleanText } from '../../shared/dom/htmlToText';
 import { startInspecting } from '../elementInspector';
@@ -203,7 +204,7 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
   copyButton.addEventListener('click', () => {
     const el = currentSelected();
     if (!el) return;
-    copyToClipboard(elementToCleanText(el));
+    copyToClipboard(applyPromptConfig(elementToCleanText(el)));
   });
 
   const updateForCurrentLevel = () => {
@@ -211,7 +212,7 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
     if (!el) return;
     label.textContent = describeElement(el);
     sliderValue.textContent = `${level} / ${Math.max(ancestorChain.length - 1, 0)}`;
-    preview.textContent = truncate(elementToCleanText(el));
+    preview.textContent = truncate(applyPromptConfig(elementToCleanText(el)));
     showSelectionHighlight(el);
   };
 

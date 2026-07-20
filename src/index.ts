@@ -9,6 +9,7 @@ import * as Generic from './sites/generic';
 export { Generic };
 
 import { registerMenuCommand } from './core/menuCommand';
+import { setPromptConfig } from './core/promptConfig';
 import { seedDefaultJobSitesOnce } from './core/seedDefaultSites';
 import { getSiteStatus, hasAskedForSite } from './core/siteStatus';
 import { installFloatingButton, removeFloatingButton } from './ui/floatingButton';
@@ -26,10 +27,30 @@ export interface InitConfig {
   /** Label of the Tampermonkey menu command. Default: "Open Offer Extract menu". */
   menuCommandLabel?: string;
   loadDefaultJobSites?: boolean;
+  /**
+   * Fixed text prepended to whatever the Job extraction tab copies —
+   * e.g. a standing instruction for pasting straight into an AI chat.
+   * Default: none.
+   */
+  prePrompt?: string;
+  /**
+   * Wraps the copied selection on both sides with this string (e.g. `"`,
+   * `'`, `` ` ``, or a code fence like ` ``` `). Only applied when
+   * decorateSelection is true. Default: none.
+   */
+  selectionDecoration?: string;
+  /** Turns selectionDecoration on/off. Default: false. */
+  decorateSelection?: boolean;
 }
 
 export function init(config: InitConfig = {}): void {
   if (window.self !== window.top) return;
+
+  setPromptConfig({
+    prePrompt: config.prePrompt ?? '',
+    selectionDecoration: config.selectionDecoration ?? '',
+    decorateSelection: config.decorateSelection ?? false,
+  });
 
   seedDefaultJobSitesOnce(config.loadDefaultJobSites ?? false);
 

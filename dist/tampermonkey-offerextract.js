@@ -82,6 +82,23 @@ var TMOfferExtract = (() => {
     }
   }
 
+  // src/core/promptConfig.ts
+  var config = {
+    prePrompt: "",
+    selectionDecoration: "",
+    decorateSelection: false
+  };
+  function setPromptConfig(next) {
+    config = { ...config, ...next };
+  }
+  function applyPromptConfig(text) {
+    const { prePrompt, selectionDecoration, decorateSelection } = config;
+    const decorated = decorateSelection && selectionDecoration ? `${selectionDecoration}${text}${selectionDecoration}` : text;
+    return prePrompt ? `${prePrompt}
+
+${decorated}` : decorated;
+  }
+
   // src/core/defaultJobSites.ts
   var DEFAULT_JOB_SITE_HOSTNAMES = [
     // Global job boards
@@ -990,14 +1007,14 @@ ${lines.join("\n")}
     copyButton.addEventListener("click", () => {
       const el = currentSelected();
       if (!el) return;
-      copyToClipboard(elementToCleanText(el));
+      copyToClipboard(applyPromptConfig(elementToCleanText(el)));
     });
     const updateForCurrentLevel = () => {
       const el = currentSelected();
       if (!el) return;
       label.textContent = describeElement(el);
       sliderValue.textContent = `${level} / ${Math.max(ancestorChain.length - 1, 0)}`;
-      preview.textContent = truncate(elementToCleanText(el));
+      preview.textContent = truncate(applyPromptConfig(elementToCleanText(el)));
       showSelectionHighlight(el);
     };
     slider.addEventListener("input", () => {
@@ -1368,9 +1385,14 @@ ${lines.join("\n")}
 
   // src/index.ts
   var BUTTON_ID = "offerextract-button";
-  function init(config = {}) {
+  function init(config2 = {}) {
     if (window.self !== window.top) return;
-    seedDefaultJobSitesOnce(config.loadDefaultJobSites ?? false);
+    setPromptConfig({
+      prePrompt: config2.prePrompt ?? "",
+      selectionDecoration: config2.selectionDecoration ?? "",
+      decorateSelection: config2.decorateSelection ?? false
+    });
+    seedDefaultJobSitesOnce(config2.loadDefaultJobSites ?? false);
     registerMenuTabs([jobExtractionTab, sitesTab, settingsTab]);
     const applyButtonVisibility = (isJobSite) => {
       if (isJobSite === false) {
@@ -1378,13 +1400,13 @@ ${lines.join("\n")}
       } else {
         installFloatingButton({
           id: BUTTON_ID,
-          label: config.buttonLabel ?? "\u2630",
+          label: config2.buttonLabel ?? "\u2630",
           onClick: toggleMenu
         });
       }
     };
     applyButtonVisibility(getSiteStatus(location.hostname));
-    registerMenuCommand(config.menuCommandLabel ?? "Open Offer Extract menu", openMenu);
+    registerMenuCommand(config2.menuCommandLabel ?? "Open Offer Extract menu", openMenu);
     if (!hasAskedForSite(location.hostname)) {
       showSitePrompt();
     }

@@ -28,5 +28,15 @@
     // buttonLabel: '☰',                            // default
     // menuCommandLabel: 'Open Offer Extract menu', // default
     loadDefaultJobSites: true, // default: false
+
+    // Prepended to whatever the Job extraction tab copies — handy for a
+    // standing instruction when pasting straight into an AI chat.
+    // prePrompt: 'Extract the job title, company, and salary range from the text below.',
+
+    // Wraps the copied selection itself (not the prePrompt) on both sides,
+    // e.g. to fence it off from the instruction above. Only used if
+    // decorateSelection is true.
+    // selectionDecoration: '```',
+    // decorateSelection: false, // default: false
   });
 })();
