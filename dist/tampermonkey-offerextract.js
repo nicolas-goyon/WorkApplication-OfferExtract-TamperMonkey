@@ -541,15 +541,6 @@ var TMOfferExtract = (() => {
     });
   }
 
-  // src/shared/ui/notify.ts
-  function observeAndReinstallButton(install) {
-    const observer = new MutationObserver(() => {
-      if (!document.body) return;
-      install();
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-  }
-
   // src/index.ts
   var BUTTON_ID = "offerextract-button";
   function init(config = {}) {
@@ -560,7 +551,6 @@ var TMOfferExtract = (() => {
       onClick: toggleMenu
     });
     install();
-    observeAndReinstallButton(install);
     registerMenuCommand(config.menuCommandLabel ?? "Open Offer Extract menu", openMenu);
     if (!hasAskedForSite(location.hostname)) {
       showSitePrompt();
