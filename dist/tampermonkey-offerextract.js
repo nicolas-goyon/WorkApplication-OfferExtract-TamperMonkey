@@ -324,19 +324,14 @@ ${lines.join("\n")}
   var SEE_MORE_SELECTOR2 = '[data-testid="expandable-text-button"]';
   var TAG_ICON_SELECTOR = "svg#check-small";
 
-  // src/sites/linkedin/extract.ts
-  function extractOffer2() {
-    const generic = extractGenericOffer();
+  // src/sites/linkedin/topCard.ts
+  function readTopCard() {
     const { title, company } = parseDocumentTitle();
-    const descriptionSections = Array.from(document.querySelectorAll(EXPANDABLE_TEXT_SELECTOR)).map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0);
-    const tags = findTags();
     return {
-      ...generic,
-      title: title ?? generic.title,
-      company: company ?? generic.company,
-      location: findLocation(company) ?? generic.location,
-      description: descriptionSections.length > 0 ? descriptionSections.join("\n\n") : generic.description,
-      ...tags.length > 0 ? { tags } : {}
+      title,
+      company,
+      location: findLocation(company),
+      tags: findTags()
     };
   }
   function parseDocumentTitle() {
@@ -370,6 +365,21 @@ ${lines.join("\n")}
     return void 0;
   }
 
+  // src/sites/linkedin/extract.ts
+  function extractOffer2() {
+    const generic = extractGenericOffer();
+    const topCard = readTopCard();
+    const descriptionSections = Array.from(document.querySelectorAll(EXPANDABLE_TEXT_SELECTOR)).map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0);
+    return {
+      ...generic,
+      title: topCard.title ?? generic.title,
+      company: topCard.company ?? generic.company,
+      location: topCard.location ?? generic.location,
+      description: descriptionSections.length > 0 ? descriptionSections.join("\n\n") : generic.description,
+      ...topCard.tags.length > 0 ? { tags: topCard.tags } : {}
+    };
+  }
+
   // src/sites/linkedin/template.ts
   var HOSTNAME_SUFFIX2 = "linkedin.com";
   function matchesHostname2(hostname) {
@@ -398,13 +408,18 @@ ${lines.join("\n")}
       step(count);
     });
   }
+  function formatHeader(topCard) {
+    return [topCard.title, topCard.company, topCard.location, topCard.tags.length > 0 ? topCard.tags.join(" \xB7 ") : void 0].filter((line) => !!line).join("\n");
+  }
   async function getTemplateText2() {
     const sections = locateSections2();
     if (sections.length === 0) return null;
     for (const section of sections) {
       await expandCollapsedSections2(section);
     }
-    const text = sections.map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0).join("\n\n");
+    const description = sections.map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0).join("\n\n");
+    const header = formatHeader(readTopCard());
+    const text = [header, description].filter((chunk) => chunk.length > 0).join("\n\n");
     return text.trim() || null;
   }
 

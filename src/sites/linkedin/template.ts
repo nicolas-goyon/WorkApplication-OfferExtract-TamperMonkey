@@ -1,5 +1,6 @@
 import { elementToCleanText } from '../../shared/dom/htmlToText';
 import { EXPANDABLE_TEXT_SELECTOR, SEE_MORE_SELECTOR } from './selectors';
+import { readTopCard, type TopCard } from './topCard';
 
 const HOSTNAME_SUFFIX = 'linkedin.com';
 
@@ -35,6 +36,16 @@ function nextFrames(count: number): Promise<void> {
   });
 }
 
+/**
+ * Title/company/location/tags live outside the expandable-text-box (see topCard.ts) — without
+ * this they'd be in extract()'s structured OfferData but silently missing from the copied text.
+ */
+function formatHeader(topCard: TopCard): string {
+  return [topCard.title, topCard.company, topCard.location, topCard.tags.length > 0 ? topCard.tags.join(' · ') : undefined]
+    .filter((line): line is string => !!line)
+    .join('\n');
+}
+
 // Returns null if the page doesn't look like a LinkedIn job detail pane, so the caller can fall back to manual picking.
 export async function getTemplateText(): Promise<string | null> {
   const sections = locateSections();
@@ -44,10 +55,14 @@ export async function getTemplateText(): Promise<string | null> {
     await expandCollapsedSections(section);
   }
 
-  const text = sections
+  const description = sections
     .map((el) => elementToCleanText(el))
     .filter((chunk) => chunk.length > 0)
     .join('\n\n');
+
+  const header = formatHeader(readTopCard());
+
+  const text = [header, description].filter((chunk) => chunk.length > 0).join('\n\n');
 
   return text.trim() || null;
 }
