@@ -12,3 +12,11 @@ export const EXPANDABLE_TEXT_SELECTOR = '[data-testid="expandable-text-box"]';
 
 /** The "…plus" / "see more" toggle inside an expandable-text section. */
 export const SEE_MORE_SELECTOR = '[data-testid="expandable-text-button"]';
+
+/**
+ * Icon inside each top-card pill/badge (work mode, contract type, ...). LinkedIn's icon `id`s are
+ * a small semantic vocabulary (e.g. "check-small", "close-small") shared across the whole site —
+ * unlike its CSS classes, they don't change per build, which is why this anchors on the icon
+ * rather than the pill's (hashed) wrapper classes.
+ */
+export const TAG_ICON_SELECTOR = 'svg#check-small';

@@ -322,24 +322,40 @@ ${lines.join("\n")}
   // src/sites/linkedin/selectors.ts
   var EXPANDABLE_TEXT_SELECTOR = '[data-testid="expandable-text-box"]';
   var SEE_MORE_SELECTOR2 = '[data-testid="expandable-text-button"]';
+  var TAG_ICON_SELECTOR = "svg#check-small";
 
   // src/sites/linkedin/extract.ts
   function extractOffer2() {
     const generic = extractGenericOffer();
     const { title, company } = parseDocumentTitle();
     const descriptionSections = Array.from(document.querySelectorAll(EXPANDABLE_TEXT_SELECTOR)).map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0);
+    const tags = findTags();
     return {
       ...generic,
       title: title ?? generic.title,
       company: company ?? generic.company,
       location: findLocation(company) ?? generic.location,
-      description: descriptionSections.length > 0 ? descriptionSections.join("\n\n") : generic.description
+      description: descriptionSections.length > 0 ? descriptionSections.join("\n\n") : generic.description,
+      ...tags.length > 0 ? { tags } : {}
     };
   }
   function parseDocumentTitle() {
     const parts = document.title.split("|").map((part) => textOf(part)).filter((part) => !!part);
     if (parts.length < 2) return {};
     return { title: parts[0], company: parts[parts.length - 2] };
+  }
+  function findTags() {
+    const seen = /* @__PURE__ */ new Set();
+    const tags = [];
+    for (const icon of Array.from(document.querySelectorAll(TAG_ICON_SELECTOR))) {
+      const pill = icon.closest("a") ?? icon.parentElement;
+      const text = pill ? textOf(pill.textContent) : void 0;
+      if (text && !seen.has(text)) {
+        seen.add(text);
+        tags.push(text);
+      }
+    }
+    return tags;
   }
   function findLocation(company) {
     if (!company) return void 0;
