@@ -1,4 +1,3 @@
-/** Public entry point of the Apec.fr site module. */
 export * from './types';
 
 import { extractOffer } from './extract';

@@ -1,10 +1,3 @@
-/**
- * Automated "template" pick for Apec.fr: locates the same kind of content a
- * person would manually pick (title, contract/location chips, full offer
- * body) without needing the DevTools-style picker, and expands the
- * "Voir plus" skill-list toggles first so their extra items are actually in
- * the DOM before the text is read.
- */
 import { elementToCleanText } from '../../shared/dom/htmlToText';
 import { SEE_MORE_SELECTOR, TEMPLATE_SECTION_SELECTORS } from './selectors';
 
@@ -14,7 +7,6 @@ export function matchesHostname(hostname: string): boolean {
   return hostname === HOSTNAME_SUFFIX || hostname.endsWith(`.${HOSTNAME_SUFFIX}`);
 }
 
-/** The distinct elements the template reads from, in reading order. */
 export function locateSections(): Element[] {
   const seen = new Set<Element>();
   const sections: Element[] = [];
@@ -28,21 +20,13 @@ export function locateSections(): Element[] {
   return sections;
 }
 
-/**
- * Clicks every "Voir plus" toggle inside scope and waits a couple of frames
- * for the framework to render the extra items it reveals. Safe to call even
- * when there's nothing collapsed (no-op).
- */
 export async function expandCollapsedSections(scope: Element): Promise<void> {
   const toggles = Array.from(scope.querySelectorAll(SEE_MORE_SELECTOR));
   if (toggles.length === 0) return;
 
   for (const toggle of toggles) {
-    // The visible "Voir plus" text is a <span> nested inside the <label>;
-    // Angular's click handler is bound to that innermost element (or an
-    // ancestor), same as where a real click would land. Dispatching on the
-    // outer <label> instead misses a handler bound to the inner span, since
-    // clicks only bubble upward from the target, never down to children.
+    // Click the innermost <span>, not the <label>: clicks bubble up from the
+    // target, and Angular's handler sits on the span, not its ancestor.
     const clickTarget = toggle.querySelector('label span') ?? toggle.querySelector('label') ?? toggle;
     clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   }
@@ -63,13 +47,7 @@ function nextFrames(count: number): Promise<void> {
   });
 }
 
-/**
- * Locates the offer sections, expands their collapsed skill lists, and
- * returns the combined clean text — the automated equivalent of manually
- * picking (and re-picking wider/narrower) with the element picker. Returns
- * null if the page doesn't look like an Apec offer page (selectors not
- * found), so the caller can fall back to manual picking.
- */
+// Returns null if the page doesn't look like an Apec offer page, so the caller can fall back to manual picking.
 export async function getTemplateText(): Promise<string | null> {
   const sections = locateSections();
   if (sections.length === 0) return null;
