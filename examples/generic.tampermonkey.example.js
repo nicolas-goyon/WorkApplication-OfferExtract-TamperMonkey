@@ -2,24 +2,29 @@
 // @name         Offer Extract - Generic
 // @namespace    local.offerextract
 // @version      1.0.0
-// @description  Adds an "Extract offer" button that reads job posting data from the page and copies it as JSON. Never submits anything.
+// @description  Floating draggable button + Tampermonkey menu for Offer Extract. Job extraction is a placeholder for now; nothing is submitted or modified on the page.
 // @match        *://*/*
 // @run-at       document-idle
 // @grant        unsafeWindow
-// @grant        GM_setClipboard
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_registerMenuCommand
 // @require      https://cdn.jsdelivr.net/gh/nicolas-goyon/WorkApplication-OfferExtract-TamperMonkey@v0.1.0/dist/tampermonkey-offerextract.js
 // ==/UserScript==
 
-// TEMPLATE — copy this file into a new local Tampermonkey script and adjust
-// @match to the job site(s) you actually want the button on. One @require
-// covers every site module in the bundle, including ones added later.
+// TEMPLATE — copy this file into a new local Tampermonkey script. It runs on
+// every site by default: the floating button (draggable, snaps to the
+// nearest corner, position remembered across sites) and the Tampermonkey
+// menu command both open the same menu. On a hostname visited for the first
+// time, it also asks once whether the site is job-related and remembers
+// the answer.
 
 (function () {
   'use strict';
 
   window.TMOfferExtract.init({
-    // buttonLabel: 'Extract offer',
-    // extract: window.TMOfferExtract.Generic.extract, // default
-    // onExtract: (offer) => console.log(offer),
+    // buttonLabel: '☰',                            // default
+    // menuCommandLabel: 'Open Offer Extract menu', // default
   });
 })();

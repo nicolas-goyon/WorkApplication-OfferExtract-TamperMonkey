@@ -18,7 +18,7 @@ More sites are added incrementally under `src/sites/<site>/` — see `src/sites/
 
 1. This repository is public and served through the [jsDelivr](https://www.jsdelivr.com/) CDN, which serves files straight from GitHub tags.
 2. Your local Tampermonkey userscript loads the library with `@require`, then calls `window.TMOfferExtract.init({ ... })`.
-3. The library installs a floating "Extract offer" button on matching pages. On click, it runs the extractor (generic by default, or a site-specific one you pass in), logs the result, and copies it to the clipboard as JSON. **It never submits or modifies the page.**
+3. The library installs a small floating button (draggable, snaps to the nearest corner, position remembered across sites) plus a matching Tampermonkey menu command — both open the same menu panel, with tabs for **Job extraction** (placeholder for now — see [Roadmap](#roadmap)) and **Settings**. On any hostname visited for the first time, it also asks once whether the site is job-related and remembers the answer from then on. **It never submits or modifies the page.**
 
 ## Installation (Tampermonkey)
 
@@ -30,8 +30,8 @@ More sites are added incrementally under `src/sites/<site>/` — see `src/sites/
    https://cdn.jsdelivr.net/gh/nicolas-goyon/WorkApplication-OfferExtract-TamperMonkey@v0.1.0/dist/tampermonkey-offerextract.js
    ```
 
-4. Adjust `@match` to the pages you want the button on.
-5. Save. On a job posting page, click the floating button, review the extracted JSON in the console/clipboard.
+4. Adjust `@match` to the pages you want the tool on (defaults to every site).
+5. Save. The button appears bottom-right by default — drag it to any corner, it'll stay there on every site. Click it, or use the Tampermonkey menu command, to open the menu.
 
 Always pin an exact tag (`@v0.1.0`) rather than a branch or `@latest`.
 
@@ -64,6 +64,11 @@ https://cdn.jsdelivr.net/gh/nicolas-goyon/WorkApplication-OfferExtract-TamperMon
 ## Adding a new site
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md#adding-a-new-site).
+
+## Roadmap
+
+- [x] Floating draggable button + Tampermonkey menu command, per-site job classification prompt.
+- [ ] Wire the generic/site extractors into the "Job extraction" tab (next feature).
 
 ## Disclaimer
 

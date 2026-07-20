@@ -11,16 +11,35 @@ This repository provides a TypeScript library that extracts job offer data from 
 
 ```
 src/
-  global.d.ts              Global types (e.g. `unsafeWindow` provided by Tampermonkey)
+  global.d.ts              Global types: `unsafeWindow` + GM_getValue/GM_setValue/
+                            GM_addValueChangeListener/GM_registerMenuCommand declarations
   index.ts                 Root barrel -> dist/tampermonkey-offerextract.js (window.TMOfferExtract)
-                            Also exposes init(config) which installs the floating button.
+                            Exposes init(config): wires up the floating button, menu panel,
+                            menu command, and per-site job-classification prompt.
+
+  core/                    App state + Tampermonkey glue, no DOM
+    storage.ts                GM_getValue/GM_setValue/GM_addValueChangeListener wrapper
+                               (falls back to localStorage outside a userscript context)
+    siteStatus.ts             Per-hostname "is this a job site?" map
+    buttonPosition.ts         Persisted floating-button corner
+    menuCommand.ts            GM_registerMenuCommand wrapper
+
+  ui/                      DOM pieces, wired to core/ but no business logic of their own
+    floatingButton.ts         Draggable button; snaps to the nearest corner on release
+    menuPanel.ts              Tabbed panel (nav bar + content), opened by the button or
+                               the Tampermonkey menu command
+    sitePrompt.ts             One-off "is this a job site?" prompt
+    cornerStyles.ts           Shared left/right/top/bottom styles for a given corner
+    tabs/
+      jobExtractionTab.ts       Job extraction tab (placeholder + site classification toggle)
+      settingsTab.ts            Settings tab (reset button position, forget this site)
 
   shared/                  Generic utilities, reusable across all site modules
     text.ts                  textOf() (trim + collapse whitespace)
     dom/
       root.ts                 getRootWindow() (unsafeWindow || window)
     ui/
-      notify.ts               notify(), installButton(), observeAndReinstallButton()
+      notify.ts               notify() toast, observeAndReinstallButton()
 
   sites/
     generic/                One always-available module: JSON-LD JobPosting -> title/meta fallback
@@ -30,6 +49,8 @@ src/
     _template/               Not bundled (not imported from src/index.ts) — copy when adding a real site
     <site-name>/             One subfolder per job site/ATS once added, same shape as generic/
 ```
+
+Extraction (`Generic.extract()` and friends under `sites/`) isn't wired into the UI yet — the "Job extraction" tab is a placeholder plus the site-classification toggle. That wiring is the next feature.
 
 ## Public API of a site module
 

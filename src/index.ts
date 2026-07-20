@@ -8,41 +8,48 @@ import * as Generic from './sites/generic';
 
 export { Generic };
 
-import { installButton, notify, observeAndReinstallButton } from './shared/ui/notify';
-import type { OfferData } from './sites/generic/types';
+import { registerMenuCommand } from './core/menuCommand';
+import { hasAskedForSite } from './core/siteStatus';
+import { installFloatingButton } from './ui/floatingButton';
+import { openMenu, registerMenuTabs, toggleMenu } from './ui/menuPanel';
+import { showSitePrompt } from './ui/sitePrompt';
+import { jobExtractionTab } from './ui/tabs/jobExtractionTab';
+import { settingsTab } from './ui/tabs/settingsTab';
+import { observeAndReinstallButton } from './shared/ui/notify';
 
 const BUTTON_ID = 'offerextract-button';
 
 export interface InitConfig {
-  /** Called with the extracted data once the button is clicked. Default: copy to clipboard + toast. */
-  onExtract?: (offer: OfferData) => void;
-  /** Label of the floating button. Default: "Extract offer". */
+  /** Label of the floating button. Default: "☰". */
   buttonLabel?: string;
-  /** Extractor to run. Default: the generic, site-agnostic one. */
-  extract?: () => OfferData;
+  /** Label of the Tampermonkey menu command. Default: "Open Offer Extract menu". */
+  menuCommandLabel?: string;
 }
 
-/** Call from your local Tampermonkey script to install the floating "Extract offer" button. */
+/**
+ * Call from your local Tampermonkey script. Installs the floating,
+ * draggable button and the matching Tampermonkey menu command — both open
+ * the same menu panel (nav bar: Job extraction, Settings). On a hostname
+ * visited for the first time, also asks once whether it's job-related and
+ * remembers the answer from then on. Runs on every site; nothing is
+ * submitted or modified on the page.
+ */
 export function init(config: InitConfig = {}): void {
-  const extract = config.extract ?? Generic.extract;
-  const onExtract = config.onExtract ?? defaultOnExtract;
+  registerMenuTabs([jobExtractionTab, settingsTab]);
 
   const install = () =>
-    installButton({
+    installFloatingButton({
       id: BUTTON_ID,
-      label: config.buttonLabel ?? 'Extract offer',
-      onClick: () => onExtract(extract()),
+      label: config.buttonLabel ?? '☰',
+      onClick: toggleMenu,
     });
 
   install();
   observeAndReinstallButton(install);
-}
 
-function defaultOnExtract(offer: OfferData): void {
-  const json = JSON.stringify(offer, null, 2);
-  console.log('[OfferExtract]', offer);
-  navigator.clipboard
-    ?.writeText(json)
-    .then(() => notify('Offer data copied to clipboard.'))
-    .catch(() => notify('Offer extracted (see console) — clipboard copy failed.'));
+  registerMenuCommand(config.menuCommandLabel ?? 'Open Offer Extract menu', openMenu);
+
+  if (!hasAskedForSite(location.hostname)) {
+    showSitePrompt();
+  }
 }

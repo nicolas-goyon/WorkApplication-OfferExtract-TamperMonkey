@@ -26,37 +26,6 @@ export function notify(message: string, options: NotifierOptions = {}): void {
   setTimeout(() => toast.remove(), durationMs);
 }
 
-export interface ButtonOptions {
-  id: string;
-  label: string;
-  onClick: () => void;
-}
-
-/** Installs a floating action button, replacing any previous one with the same id. */
-export function installButton({ id, label, onClick }: ButtonOptions): void {
-  document.getElementById(id)?.remove();
-
-  const button = document.createElement('button');
-  button.id = id;
-  button.textContent = label;
-  Object.assign(button.style, {
-    position: 'fixed',
-    right: '16px',
-    bottom: '64px',
-    zIndex: '2147483647',
-    padding: '10px 16px',
-    borderRadius: '999px',
-    border: 'none',
-    background: '#2563eb',
-    color: '#fff',
-    font: '13px/1 system-ui, sans-serif',
-    cursor: 'pointer',
-    boxShadow: '0 2px 8px rgba(0,0,0,.25)',
-  } satisfies Partial<CSSStyleDeclaration>);
-  button.addEventListener('click', onClick);
-  document.body.appendChild(button);
-}
-
 /** Re-installs the button whenever the SPA wipes the DOM subtree it lived in. */
 export function observeAndReinstallButton(install: () => void): void {
   const observer = new MutationObserver(() => {
