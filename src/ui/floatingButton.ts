@@ -13,12 +13,7 @@ const SIZE = 48;
 const MARGIN = 20;
 const DRAG_THRESHOLD = 6;
 
-/**
- * Installs the button. No-op if one with this id is already in the
- * document — callers (e.g. observeAndReinstallButton) may call this
- * repeatedly on every DOM mutation, and removing+re-appending the button
- * would itself be a mutation, causing an infinite reinstall loop.
- */
+/** Installs the button. No-op if one with this id is already in the document. */
 export function installFloatingButton({ id, label, onClick }: FloatingButtonOptions): void {
   if (document.getElementById(id)) return;
 

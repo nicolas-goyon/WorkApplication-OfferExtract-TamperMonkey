@@ -52,11 +52,6 @@ export function clearSiteStatus(hostname: string): void {
   notify(hostname, undefined);
 }
 
-/** Fires whenever setSiteStatus/clearSiteStatus runs, for any hostname, in this tab. */
-export function onSiteStatusChange(listener: SiteStatusListener): void {
-  listeners.add(listener);
-}
-
 export interface SiteStatusEntry {
   hostname: string;
   isJobSite: boolean;

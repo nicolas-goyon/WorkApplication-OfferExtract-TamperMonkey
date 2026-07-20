@@ -194,9 +194,6 @@ var TMOfferExtract = (() => {
     setValue(SITE_STATUS_KEY, map);
     notify(hostname, void 0);
   }
-  function onSiteStatusChange(listener) {
-    listeners.add(listener);
-  }
   function getAllSiteStatuses() {
     return Object.entries(readMap()).map(([hostname, isJobSite]) => ({ hostname, isJobSite })).sort((a, b) => a.hostname.localeCompare(b.hostname));
   }
@@ -483,7 +480,7 @@ var TMOfferExtract = (() => {
     Object.assign(box2.style, cornerStyles(getButtonCorner(), PROMPT_MARGIN));
     const question = document.createElement("p");
     question.textContent = "Is this a job-related website (job board, ATS, application form)?";
-    Object.assign(question.style, { margin: "0 0 12px" });
+    Object.assign(question.style, { margin: "0 0 12px", color: "#f9fafb" });
     box2.appendChild(question);
     const row = document.createElement("div");
     Object.assign(row.style, { display: "flex", gap: "8px" });
@@ -688,7 +685,7 @@ var TMOfferExtract = (() => {
     render(container) {
       const hostname = location.hostname;
       const statusLine = document.createElement("p");
-      Object.assign(statusLine.style, { margin: "0 0 10px" });
+      Object.assign(statusLine.style, { margin: "0 0 10px", color: "#f9fafb" });
       const toggleRow = document.createElement("div");
       Object.assign(toggleRow.style, {
         display: "flex",
@@ -1200,9 +1197,6 @@ var TMOfferExtract = (() => {
       }
     };
     applyButtonVisibility(getSiteStatus(location.hostname));
-    onSiteStatusChange((hostname, isJobSite) => {
-      if (hostname === location.hostname) applyButtonVisibility(isJobSite);
-    });
     registerMenuCommand(config.menuCommandLabel ?? "Open Offer Extract menu", openMenu);
     if (!hasAskedForSite(location.hostname)) {
       showSitePrompt();

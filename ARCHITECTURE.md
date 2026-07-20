@@ -53,7 +53,7 @@ src/
     dom/
       root.ts                 getRootWindow() (unsafeWindow || window)
     ui/
-      notify.ts               notify() toast, observeAndReinstallButton()
+      notify.ts               notify() toast
       elementOverlay.ts        createOverlayBox()/positionOverlayOnElement(): fixed-position
                                 highlight box snapped to an element's bounding rect, shared by
                                 the hover picker and the persistent selection highlight

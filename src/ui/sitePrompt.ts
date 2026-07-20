@@ -26,7 +26,7 @@ export function showSitePrompt(onAnswered?: (isJobSite: boolean) => void): void 
 
   const question = document.createElement('p');
   question.textContent = 'Is this a job-related website (job board, ATS, application form)?';
-  Object.assign(question.style, { margin: '0 0 12px' } satisfies Partial<CSSStyleDeclaration>);
+  Object.assign(question.style, { margin: '0 0 12px', color: '#f9fafb' } satisfies Partial<CSSStyleDeclaration>);
   box.appendChild(question);
 
   const row = document.createElement('div');

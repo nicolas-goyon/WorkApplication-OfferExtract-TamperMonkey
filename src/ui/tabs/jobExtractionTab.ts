@@ -32,7 +32,7 @@ export const jobExtractionTab: MenuTab = {
     const hostname = location.hostname;
 
     const statusLine = document.createElement('p');
-    Object.assign(statusLine.style, { margin: '0 0 10px' } satisfies Partial<CSSStyleDeclaration>);
+    Object.assign(statusLine.style, { margin: '0 0 10px', color: '#f9fafb' } satisfies Partial<CSSStyleDeclaration>);
 
     const toggleRow = document.createElement('div');
     Object.assign(toggleRow.style, {

@@ -11,7 +11,7 @@
 // @grant        GM_setValue
 // @grant        GM_addValueChangeListener
 // @grant        GM_registerMenuCommand
-// @require      https://cdn.jsdelivr.net/gh/nicolas-goyon/WorkApplication-OfferExtract-TamperMonkey@v0.1.0/dist/tampermonkey-offerextract.js
+// @require      https://cdn.jsdelivr.net/gh/nicolas-goyon/WorkApplication-OfferExtract-TamperMonkey@v0.1.4/dist/tampermonkey-offerextract.js
 // ==/UserScript==
 
 // TEMPLATE — copy this file into a new local Tampermonkey script. It runs on
@@ -27,6 +27,6 @@
   window.TMOfferExtract.init({
     // buttonLabel: '☰',                            // default
     // menuCommandLabel: 'Open Offer Extract menu', // default
-    loadDefaultJobSites: false, // default: false
+    loadDefaultJobSites: true, // default: false
   });
 })();
