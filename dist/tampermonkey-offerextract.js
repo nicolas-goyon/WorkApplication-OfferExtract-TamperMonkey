@@ -194,9 +194,6 @@ var TMOfferExtract = (() => {
     setValue(SITE_STATUS_KEY, map);
     notify(hostname, void 0);
   }
-  function onSiteStatusChange(listener) {
-    listeners.add(listener);
-  }
   function getAllSiteStatuses() {
     return Object.entries(readMap()).map(([hostname, isJobSite]) => ({ hostname, isJobSite })).sort((a, b) => a.hostname.localeCompare(b.hostname));
   }
@@ -1200,9 +1197,6 @@ var TMOfferExtract = (() => {
       }
     };
     applyButtonVisibility(getSiteStatus(location.hostname));
-    onSiteStatusChange((hostname, isJobSite) => {
-      if (hostname === location.hostname) applyButtonVisibility(isJobSite);
-    });
     registerMenuCommand(config.menuCommandLabel ?? "Open Offer Extract menu", openMenu);
     if (!hasAskedForSite(location.hostname)) {
       showSitePrompt();
