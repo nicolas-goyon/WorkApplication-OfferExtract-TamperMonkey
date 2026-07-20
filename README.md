@@ -12,6 +12,7 @@ Sibling project of [WorkApplicationAutofill-TamperMonkey](https://github.com/nic
 |---|---|---|
 | Generic (any page) | `src/sites/generic/` | Reads schema.org `JobPosting` JSON-LD when present, falls back to `<title>` / meta description. Used automatically when no site-specific module matches. |
 | Apec.fr | `src/sites/apec/` | Locates title/contract/location chips and the `apec-poste-informations` offer body, expanding "Voir plus" skill-list toggles first. Also registered as a template (see below) for one-click automated picking in the Job extraction tab. |
+| LinkedIn (job search results) | `src/sites/linkedin/` | Reads title/company from `document.title`, locates the offer body via the `expandable-text-box` data-testid (LinkedIn's CSS classes are hashed per build, so selectors avoid them) and clicks its "…plus" toggle first. Also registered as a template. |
 
 More sites are added incrementally under `src/sites/<site>/` — see `src/sites/_template/` for the starting shape of a new one.
 

@@ -23,6 +23,7 @@ var TMOfferExtract = (() => {
   __export(src_exports, {
     Apec: () => apec_exports,
     Generic: () => generic_exports,
+    LinkedIn: () => linkedin_exports,
     init: () => init
   });
 
@@ -253,6 +254,7 @@ ${lines.join("\n")}
 
   // src/sites/apec/template.ts
   var HOSTNAME_SUFFIX = "apec.fr";
+  var TOGGLE_LABEL_PATTERN = /^voir (plus|moins)$/i;
   function matchesHostname(hostname) {
     return hostname === HOSTNAME_SUFFIX || hostname.endsWith(`.${HOSTNAME_SUFFIX}`);
   }
@@ -276,6 +278,13 @@ ${lines.join("\n")}
       clickTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     }
     await nextFrames(2);
+    toggles.forEach(hideToggleLabel);
+  }
+  function hideToggleLabel(toggle) {
+    const label = toggle.querySelector("label");
+    if (label && TOGGLE_LABEL_PATTERN.test(label.textContent?.trim() ?? "")) {
+      label.style.display = "none";
+    }
   }
   function nextFrames(count) {
     return new Promise((resolve) => {
@@ -301,6 +310,90 @@ ${lines.join("\n")}
 
   // src/sites/apec/index.ts
   var extract2 = extractOffer;
+
+  // src/sites/linkedin/index.ts
+  var linkedin_exports = {};
+  __export(linkedin_exports, {
+    extract: () => extract3,
+    getTemplateText: () => getTemplateText2,
+    matchesHostname: () => matchesHostname2
+  });
+
+  // src/sites/linkedin/selectors.ts
+  var EXPANDABLE_TEXT_SELECTOR = '[data-testid="expandable-text-box"]';
+  var SEE_MORE_SELECTOR2 = '[data-testid="expandable-text-button"]';
+
+  // src/sites/linkedin/extract.ts
+  function extractOffer2() {
+    const generic = extractGenericOffer();
+    const { title, company } = parseDocumentTitle();
+    const descriptionSections = Array.from(document.querySelectorAll(EXPANDABLE_TEXT_SELECTOR)).map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0);
+    return {
+      ...generic,
+      title: title ?? generic.title,
+      company: company ?? generic.company,
+      location: findLocation(company) ?? generic.location,
+      description: descriptionSections.length > 0 ? descriptionSections.join("\n\n") : generic.description
+    };
+  }
+  function parseDocumentTitle() {
+    const parts = document.title.split("|").map((part) => textOf(part)).filter((part) => !!part);
+    if (parts.length < 2) return {};
+    return { title: parts[0], company: parts[parts.length - 2] };
+  }
+  function findLocation(company) {
+    if (!company) return void 0;
+    const candidates = Array.from(document.querySelectorAll("p")).filter((p) => textOf(p.textContent) === company);
+    for (const candidate of candidates) {
+      const sibling = candidate.parentElement?.nextElementSibling;
+      if (sibling?.tagName === "P") {
+        const location2 = textOf(sibling.textContent);
+        if (location2) return location2;
+      }
+    }
+    return void 0;
+  }
+
+  // src/sites/linkedin/template.ts
+  var HOSTNAME_SUFFIX2 = "linkedin.com";
+  function matchesHostname2(hostname) {
+    return hostname === HOSTNAME_SUFFIX2 || hostname.endsWith(`.${HOSTNAME_SUFFIX2}`);
+  }
+  function locateSections2() {
+    return Array.from(document.querySelectorAll(EXPANDABLE_TEXT_SELECTOR));
+  }
+  async function expandCollapsedSections2(scope) {
+    const toggles = Array.from(scope.querySelectorAll(SEE_MORE_SELECTOR2));
+    if (toggles.length === 0) return;
+    for (const toggle of toggles) {
+      toggle.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    }
+    await nextFrames2(2);
+  }
+  function nextFrames2(count) {
+    return new Promise((resolve) => {
+      const step = (remaining) => {
+        if (remaining <= 0) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(() => step(remaining - 1));
+      };
+      step(count);
+    });
+  }
+  async function getTemplateText2() {
+    const sections = locateSections2();
+    if (sections.length === 0) return null;
+    for (const section of sections) {
+      await expandCollapsedSections2(section);
+    }
+    const text = sections.map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0).join("\n\n");
+    return text.trim() || null;
+  }
+
+  // src/sites/linkedin/index.ts
+  var extract3 = extractOffer2;
 
   // src/core/menuCommand.ts
   function registerMenuCommand(label, onCommand) {
@@ -813,6 +906,12 @@ ${decorated}` : decorated;
       label: "Apec.fr",
       matchesHostname,
       getText: getTemplateText
+    },
+    {
+      id: "linkedin",
+      label: "LinkedIn",
+      matchesHostname: matchesHostname2,
+      getText: getTemplateText2
     }
   ];
   function getSiteTemplate(hostname) {

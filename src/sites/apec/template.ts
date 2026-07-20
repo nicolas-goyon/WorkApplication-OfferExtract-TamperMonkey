@@ -2,6 +2,7 @@ import { elementToCleanText } from '../../shared/dom/htmlToText';
 import { SEE_MORE_SELECTOR, TEMPLATE_SECTION_SELECTORS } from './selectors';
 
 const HOSTNAME_SUFFIX = 'apec.fr';
+const TOGGLE_LABEL_PATTERN = /^voir (plus|moins)$/i;
 
 export function matchesHostname(hostname: string): boolean {
   return hostname === HOSTNAME_SUFFIX || hostname.endsWith(`.${HOSTNAME_SUFFIX}`);
@@ -32,6 +33,15 @@ export async function expandCollapsedSections(scope: Element): Promise<void> {
   }
 
   await nextFrames(2);
+  toggles.forEach(hideToggleLabel);
+}
+
+// The label now reads "Voir moins" (or still "Voir plus" if nothing expanded); it's UI chrome, not offer content.
+function hideToggleLabel(toggle: Element): void {
+  const label = toggle.querySelector('label');
+  if (label && TOGGLE_LABEL_PATTERN.test(label.textContent?.trim() ?? '')) {
+    (label as HTMLElement).style.display = 'none';
+  }
 }
 
 function nextFrames(count: number): Promise<void> {
