@@ -12,6 +12,12 @@
 
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'IFRAME', 'CANVAS', 'SVG']);
 
+// Class-name tokens that conventionally mark an element as an interactive
+// control (button, share link, "apply now" link, ...) rather than prose —
+// this is a structural/CSS-convention check, not a match on visible text, so
+// it holds regardless of the page's language.
+const CONTROL_CLASS_PATTERN = /\bbtn\b|button|\bcta\b/i;
+
 // Generic/layout containers: collapsed to a single line break, not a blank-line gap.
 const TIGHT_BLOCK_TAGS = new Set([
   'DIV', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'MAIN', 'ASIDE',
@@ -26,6 +32,20 @@ export function elementToCleanText(root: Element): string {
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/**
+ * True for elements that are interactive chrome (buttons, share/apply
+ * links, icon controls, ...) rather than page content. Detected structurally
+ * — tag, role, or a "btn"/"button"/"cta" class token — never by matching the
+ * element's visible text, so this behaves the same on a French or English
+ * page.
+ */
+function isControlElement(el: Element): boolean {
+  if (el.tagName === 'BUTTON') return true;
+  if (el.getAttribute('role') === 'button') return true;
+  const cls = el.getAttribute('class');
+  return !!cls && CONTROL_CLASS_PATTERN.test(cls);
 }
 
 function isHidden(el: Element): boolean {
@@ -48,7 +68,7 @@ function renderNode(node: Node): string {
 
   const el = node as Element;
   const tag = el.tagName;
-  if (SKIP_TAGS.has(tag) || isHidden(el)) return '';
+  if (SKIP_TAGS.has(tag) || isHidden(el) || isControlElement(el)) return '';
 
   switch (tag) {
     case 'BR':

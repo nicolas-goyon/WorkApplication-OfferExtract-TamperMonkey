@@ -21,6 +21,7 @@ var TMOfferExtract = (() => {
   // src/index.ts
   var src_exports = {};
   __export(src_exports, {
+    Apec: () => apec_exports,
     Generic: () => generic_exports,
     init: () => init
   });
@@ -74,6 +75,231 @@ var TMOfferExtract = (() => {
 
   // src/sites/generic/index.ts
   var extract = extractGenericOffer;
+
+  // src/sites/apec/index.ts
+  var apec_exports = {};
+  __export(apec_exports, {
+    extract: () => extract2,
+    getTemplateText: () => getTemplateText,
+    matchesHostname: () => matchesHostname
+  });
+
+  // src/shared/dom/htmlToText.ts
+  var SKIP_TAGS = /* @__PURE__ */ new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "IFRAME", "CANVAS", "SVG"]);
+  var CONTROL_CLASS_PATTERN = /\bbtn\b|button|\bcta\b/i;
+  var TIGHT_BLOCK_TAGS = /* @__PURE__ */ new Set([
+    "DIV",
+    "SECTION",
+    "ARTICLE",
+    "HEADER",
+    "FOOTER",
+    "MAIN",
+    "ASIDE",
+    "FIGURE",
+    "FIGCAPTION",
+    "FORM",
+    "UL",
+    "OL",
+    "THEAD",
+    "TBODY",
+    "TFOOT"
+  ]);
+  function elementToCleanText(root2) {
+    const raw = renderNode(root2);
+    return raw.replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  function isControlElement(el) {
+    if (el.tagName === "BUTTON") return true;
+    if (el.getAttribute("role") === "button") return true;
+    const cls = el.getAttribute("class");
+    return !!cls && CONTROL_CLASS_PATTERN.test(cls);
+  }
+  function isHidden(el) {
+    if (el.hasAttribute("hidden") || el.getAttribute("aria-hidden") === "true") return true;
+    const style = el.style;
+    if (style && (style.display === "none" || style.visibility === "hidden")) return true;
+    try {
+      const computed = getComputedStyle(el);
+      return computed.display === "none" || computed.visibility === "hidden";
+    } catch {
+      return false;
+    }
+  }
+  function renderNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return collapseWhitespace(node.textContent ?? "");
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    const el = node;
+    const tag = el.tagName;
+    if (SKIP_TAGS.has(tag) || isHidden(el) || isControlElement(el)) return "";
+    switch (tag) {
+      case "BR":
+        return "\n";
+      case "HR":
+        return "\n\n---\n\n";
+      case "IMG":
+        return "";
+      case "TABLE":
+        return renderTable(el);
+      case "STRONG":
+      case "B":
+        return wrapNonEmpty(renderChildren(el), "**", "**");
+      case "EM":
+      case "I":
+        return wrapNonEmpty(renderChildren(el), "*", "*");
+      case "CODE":
+        return wrapNonEmpty(renderChildren(el), "`", "`");
+      case "A": {
+        const href = el.getAttribute("href");
+        const text = renderChildren(el).trim();
+        return href && text ? `[${text}](${href})` : text;
+      }
+      case "LI": {
+        const marker = el.parentElement?.tagName === "OL" ? `${liIndex(el)}. ` : "- ";
+        return `
+${marker}${renderChildren(el).trim()}`;
+      }
+      case "P":
+        return `
+
+${renderChildren(el).trim()}
+
+`;
+      case "BLOCKQUOTE": {
+        const quoted = renderChildren(el).trim().split("\n").map((line) => `> ${line}`).join("\n");
+        return `
+
+${quoted}
+
+`;
+      }
+      case "PRE":
+        return `
+
+\`\`\`
+${(el.textContent ?? "").trim()}
+\`\`\`
+
+`;
+      default:
+        if (/^H[1-6]$/.test(tag)) {
+          const level2 = Number(tag[1]);
+          return `
+
+${"#".repeat(level2)} ${renderChildren(el).trim()}
+
+`;
+        }
+        if (TIGHT_BLOCK_TAGS.has(tag)) return `
+${renderChildren(el)}
+`;
+        return renderChildren(el);
+    }
+  }
+  function renderChildren(el) {
+    return Array.from(el.childNodes).map(renderNode).join("");
+  }
+  function wrapNonEmpty(text, open, close) {
+    return text.trim() ? `${open}${text.trim()}${close}` : "";
+  }
+  function liIndex(el) {
+    const items = Array.from(el.parentElement?.children ?? []).filter((c) => c.tagName === "LI");
+    return items.indexOf(el) + 1;
+  }
+  function renderTable(table) {
+    const rows = Array.from(table.rows);
+    if (rows.length === 0) return "";
+    const rowTexts = rows.map(
+      (row) => Array.from(row.cells).map((cell) => renderChildren(cell).trim().replace(/\|/g, "\\|") || " ").join(" | ")
+    );
+    const lines = [`| ${rowTexts[0]} |`];
+    const hasHeader = Array.from(rows[0].cells).some((cell) => cell.tagName === "TH");
+    if (hasHeader) {
+      lines.push(`| ${Array.from({ length: rows[0].cells.length }, () => "---").join(" | ")} |`);
+    }
+    for (let i = 1; i < rowTexts.length; i++) lines.push(`| ${rowTexts[i]} |`);
+    return `
+
+${lines.join("\n")}
+
+`;
+  }
+  function collapseWhitespace(text) {
+    return text.replace(/\s+/g, " ");
+  }
+
+  // src/sites/apec/selectors.ts
+  var TITLE_SELECTOR = "apec-header-nav h1, h1";
+  var DETAILS_LIST_SELECTOR = ".details-offer-list";
+  var DESCRIPTION_SELECTOR = "apec-poste-informations";
+  var TEMPLATE_SECTION_SELECTORS = [TITLE_SELECTOR, DETAILS_LIST_SELECTOR, DESCRIPTION_SELECTOR];
+  var SEE_MORE_SELECTOR = ".seeMore";
+
+  // src/sites/apec/extract.ts
+  function extractOffer() {
+    const generic = extractGenericOffer();
+    const details = Array.from(document.querySelectorAll(`${DETAILS_LIST_SELECTOR} li`)).map((li) => textOf(li.textContent)).filter((text) => !!text);
+    const descriptionEl = document.querySelector(DESCRIPTION_SELECTOR);
+    return {
+      ...generic,
+      title: textOf(document.querySelector(TITLE_SELECTOR)?.textContent) ?? generic.title,
+      company: details[0] ?? generic.company,
+      location: details.length > 1 ? details[details.length - 1] : generic.location,
+      description: descriptionEl ? elementToCleanText(descriptionEl) : generic.description
+    };
+  }
+
+  // src/sites/apec/template.ts
+  var HOSTNAME_SUFFIX = "apec.fr";
+  function matchesHostname(hostname) {
+    return hostname === HOSTNAME_SUFFIX || hostname.endsWith(`.${HOSTNAME_SUFFIX}`);
+  }
+  function locateSections() {
+    const seen = /* @__PURE__ */ new Set();
+    const sections = [];
+    for (const selector of TEMPLATE_SECTION_SELECTORS) {
+      const el = document.querySelector(selector);
+      if (el && !seen.has(el)) {
+        seen.add(el);
+        sections.push(el);
+      }
+    }
+    return sections;
+  }
+  async function expandCollapsedSections(scope) {
+    const toggles = Array.from(scope.querySelectorAll(SEE_MORE_SELECTOR));
+    if (toggles.length === 0) return;
+    for (const toggle of toggles) {
+      const clickTarget = toggle.querySelector("label") ?? toggle;
+      clickTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    }
+    await nextFrames(2);
+  }
+  function nextFrames(count) {
+    return new Promise((resolve) => {
+      const step = (remaining) => {
+        if (remaining <= 0) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(() => step(remaining - 1));
+      };
+      step(count);
+    });
+  }
+  async function getTemplateText() {
+    const sections = locateSections();
+    if (sections.length === 0) return null;
+    for (const section of sections) {
+      await expandCollapsedSections(section);
+    }
+    const text = sections.map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0).join("\n\n");
+    return text.trim() || null;
+  }
+
+  // src/sites/apec/index.ts
+  var extract2 = extractOffer;
 
   // src/core/menuCommand.ts
   function registerMenuCommand(label, onCommand) {
@@ -579,142 +805,17 @@ ${decorated}` : decorated;
     setTimeout(() => toast.remove(), durationMs);
   }
 
-  // src/shared/dom/htmlToText.ts
-  var SKIP_TAGS = /* @__PURE__ */ new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "IFRAME", "CANVAS", "SVG"]);
-  var TIGHT_BLOCK_TAGS = /* @__PURE__ */ new Set([
-    "DIV",
-    "SECTION",
-    "ARTICLE",
-    "HEADER",
-    "FOOTER",
-    "MAIN",
-    "ASIDE",
-    "FIGURE",
-    "FIGCAPTION",
-    "FORM",
-    "UL",
-    "OL",
-    "THEAD",
-    "TBODY",
-    "TFOOT"
-  ]);
-  function elementToCleanText(root2) {
-    const raw = renderNode(root2);
-    return raw.replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-  }
-  function isHidden(el) {
-    if (el.hasAttribute("hidden") || el.getAttribute("aria-hidden") === "true") return true;
-    const style = el.style;
-    if (style && (style.display === "none" || style.visibility === "hidden")) return true;
-    try {
-      const computed = getComputedStyle(el);
-      return computed.display === "none" || computed.visibility === "hidden";
-    } catch {
-      return false;
+  // src/core/siteTemplates.ts
+  var SITE_TEMPLATES = [
+    {
+      id: "apec",
+      label: "Apec.fr",
+      matchesHostname,
+      getText: getTemplateText
     }
-  }
-  function renderNode(node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return collapseWhitespace(node.textContent ?? "");
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return "";
-    const el = node;
-    const tag = el.tagName;
-    if (SKIP_TAGS.has(tag) || isHidden(el)) return "";
-    switch (tag) {
-      case "BR":
-        return "\n";
-      case "HR":
-        return "\n\n---\n\n";
-      case "IMG":
-        return "";
-      case "TABLE":
-        return renderTable(el);
-      case "STRONG":
-      case "B":
-        return wrapNonEmpty(renderChildren(el), "**", "**");
-      case "EM":
-      case "I":
-        return wrapNonEmpty(renderChildren(el), "*", "*");
-      case "CODE":
-        return wrapNonEmpty(renderChildren(el), "`", "`");
-      case "A": {
-        const href = el.getAttribute("href");
-        const text = renderChildren(el).trim();
-        return href && text ? `[${text}](${href})` : text;
-      }
-      case "LI": {
-        const marker = el.parentElement?.tagName === "OL" ? `${liIndex(el)}. ` : "- ";
-        return `
-${marker}${renderChildren(el).trim()}`;
-      }
-      case "P":
-        return `
-
-${renderChildren(el).trim()}
-
-`;
-      case "BLOCKQUOTE": {
-        const quoted = renderChildren(el).trim().split("\n").map((line) => `> ${line}`).join("\n");
-        return `
-
-${quoted}
-
-`;
-      }
-      case "PRE":
-        return `
-
-\`\`\`
-${(el.textContent ?? "").trim()}
-\`\`\`
-
-`;
-      default:
-        if (/^H[1-6]$/.test(tag)) {
-          const level2 = Number(tag[1]);
-          return `
-
-${"#".repeat(level2)} ${renderChildren(el).trim()}
-
-`;
-        }
-        if (TIGHT_BLOCK_TAGS.has(tag)) return `
-${renderChildren(el)}
-`;
-        return renderChildren(el);
-    }
-  }
-  function renderChildren(el) {
-    return Array.from(el.childNodes).map(renderNode).join("");
-  }
-  function wrapNonEmpty(text, open, close) {
-    return text.trim() ? `${open}${text.trim()}${close}` : "";
-  }
-  function liIndex(el) {
-    const items = Array.from(el.parentElement?.children ?? []).filter((c) => c.tagName === "LI");
-    return items.indexOf(el) + 1;
-  }
-  function renderTable(table) {
-    const rows = Array.from(table.rows);
-    if (rows.length === 0) return "";
-    const rowTexts = rows.map(
-      (row) => Array.from(row.cells).map((cell) => renderChildren(cell).trim().replace(/\|/g, "\\|") || " ").join(" | ")
-    );
-    const lines = [`| ${rowTexts[0]} |`];
-    const hasHeader = Array.from(rows[0].cells).some((cell) => cell.tagName === "TH");
-    if (hasHeader) {
-      lines.push(`| ${Array.from({ length: rows[0].cells.length }, () => "---").join(" | ")} |`);
-    }
-    for (let i = 1; i < rowTexts.length; i++) lines.push(`| ${rowTexts[i]} |`);
-    return `
-
-${lines.join("\n")}
-
-`;
-  }
-  function collapseWhitespace(text) {
-    return text.replace(/\s+/g, " ");
+  ];
+  function getSiteTemplate(hostname) {
+    return SITE_TEMPLATES.find((template) => template.matchesHostname(hostname));
   }
 
   // src/shared/ui/elementOverlay.ts
@@ -855,6 +956,8 @@ ${lines.join("\n")}
   var PREVIEW_MAX_CHARS = 4e3;
   var ancestorChain = [];
   var level = 0;
+  var templateText;
+  var templateRunning = false;
   function currentSelected() {
     return ancestorChain[level] ?? null;
   }
@@ -922,6 +1025,20 @@ ${lines.join("\n")}
       Object.assign(message.style, { margin: "0", color: "#9ca3af" });
       section.appendChild(message);
       return;
+    }
+    const template = getSiteTemplate(location.hostname);
+    if (template) {
+      section.appendChild(buildTemplateBlock(section, template));
+      const manualLabel = document.createElement("p");
+      manualLabel.textContent = "Manual picking (fallback)";
+      Object.assign(manualLabel.style, {
+        margin: "4px 0 8px",
+        color: "#9ca3af",
+        fontSize: "12px",
+        textTransform: "uppercase",
+        letterSpacing: ".04em"
+      });
+      section.appendChild(manualLabel);
     }
     const selected = currentSelected();
     const pickRow = document.createElement("div");
@@ -1029,6 +1146,66 @@ ${lines.join("\n")}
     section.appendChild(preview);
     section.appendChild(copyButton);
     updateForCurrentLevel();
+  }
+  function buildTemplateBlock(section, template) {
+    const block = document.createElement("div");
+    Object.assign(block.style, { marginBottom: "14px" });
+    const runButton = document.createElement("button");
+    runButton.type = "button";
+    runButton.textContent = templateRunning ? "Reading page\u2026" : `Use ${template.label} template`;
+    runButton.disabled = templateRunning;
+    styleActionButton(runButton, true);
+    runButton.addEventListener("click", () => {
+      void runTemplate(section, template);
+    });
+    block.appendChild(runButton);
+    if (templateText === null && !templateRunning) {
+      const message = document.createElement("p");
+      message.textContent = `Couldn't find the expected ${template.label} layout on this page \u2014 use manual picking below.`;
+      Object.assign(message.style, { margin: "10px 0 0", color: "#9ca3af" });
+      block.appendChild(message);
+    } else if (templateText) {
+      const preview = document.createElement("pre");
+      Object.assign(preview.style, {
+        margin: "10px 0",
+        padding: "10px",
+        background: "#0b1220",
+        border: "1px solid rgba(255,255,255,.1)",
+        borderRadius: "8px",
+        maxHeight: "220px",
+        overflow: "auto",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        fontFamily: "ui-monospace, SFMono-Regular, monospace",
+        fontSize: "11px",
+        color: "#d1d5db"
+      });
+      preview.textContent = truncate(applyPromptConfig(templateText));
+      block.appendChild(preview);
+      const copyButton = document.createElement("button");
+      copyButton.type = "button";
+      copyButton.textContent = "Copy template text";
+      styleActionButton(copyButton, true);
+      copyButton.addEventListener("click", () => {
+        if (templateText) copyToClipboard(applyPromptConfig(templateText));
+      });
+      block.appendChild(copyButton);
+    }
+    return block;
+  }
+  async function runTemplate(section, template) {
+    templateRunning = true;
+    templateText = void 0;
+    renderExtractionSection(section, true);
+    try {
+      templateText = await template.getText();
+    } catch {
+      templateText = null;
+      notify2("Template extraction failed \u2014 use manual picking below.");
+    } finally {
+      templateRunning = false;
+      renderExtractionSection(section, true);
+    }
   }
   function startPicking() {
     hideSelectionHighlight();

@@ -27,6 +27,10 @@ src/
                                by a persisted flag so it only ever runs once
     buttonPosition.ts         Persisted floating-button corner
     menuCommand.ts            GM_registerMenuCommand wrapper
+    siteTemplates.ts          Registry of per-site "templates" (hostname match ->
+                               async clean-text getter) that power the Job
+                               extraction tab's one-click automated pick; the
+                               manual element picker stays available regardless
 
   ui/                      DOM pieces, wired to core/ but no business logic of their own
     floatingButton.ts         Draggable button; snaps to the nearest corner on release;
@@ -63,6 +67,12 @@ src/
       types.ts                 OfferData: the shape every extractor returns
       extract.ts                extractGenericOffer()
       index.ts                  Public entry point: extract()
+    apec/                    Apec.fr: structured extract() plus a template (see core/siteTemplates.ts)
+      selectors.ts              Markup landmarks shared by extract.ts and template.ts
+      extract.ts                 extractOffer(): title/company/location/description overrides
+      template.ts                 matchesHostname()/getTemplateText(): locates the offer
+                                   sections and expands "Voir plus" skill-list toggles first
+      index.ts                    Public entry point: extract(), matchesHostname(), getTemplateText()
     _template/               Not bundled (not imported from src/index.ts) — copy when adding a real site
     <site-name>/             One subfolder per job site/ATS once added, same shape as generic/
 ```
@@ -84,7 +94,7 @@ export function extract(): OfferData;
 
 - Source is TypeScript (`src/**/*.ts`), checked with `npm run typecheck`.
 - `npm run build` (`scripts/build.mjs`) uses esbuild to produce a single IIFE bundle at `dist/tampermonkey-offerextract.js`, from `src/index.ts`. The bundle exposes `window.TMOfferExtract.<Site>` for each site re-exported there, plus `window.TMOfferExtract.init(config)`.
-- Releases: push a `vX.Y.Z` tag; CI (`.github/workflows/release.yml`) builds, commits `dist/` onto that tag, and repositions the tag onto the build commit so jsDelivr serves it.
+- Releases: automatic on every push to `main` that touches source/build-relevant files. CI (`.github/workflows/release.yml`) computes the next `vX.Y.Z` (patch by default, `[minor]`/`[major]` in a commit message bump higher), typechecks, builds, commits `dist/` onto that new tag, and pushes it — `main` itself is never touched. `workflow_dispatch` is a manual escape hatch (cut a release without a push, or rebuild an existing tag in place).
 - Always point `@require` at a pinned tag, never a branch.
 
 ## Adding a new site
@@ -97,6 +107,7 @@ export function extract(): OfferData;
    export { Generic, <Site> };
    ```
 4. Reuse `src/shared/*` rather than duplicating DOM/text helpers.
-5. Add a template in `examples/<site-name>.tampermonkey.example.js` and list the site in the README's "Supported sites" table.
+5. Optionally add a `template.ts` (`matchesHostname(hostname)` + `getTemplateText(): Promise<string | null>`) and register it in `core/siteTemplates.ts` — this powers the Job extraction tab's one-click "Use `<site>` template" button. Manual picking always stays available as a fallback, so this step can be skipped or added later.
+6. List the site in the README's "Supported sites" table.
 
 This part is intentionally minimal for now — extraction logic will grow site by site as we actually look at real pages.

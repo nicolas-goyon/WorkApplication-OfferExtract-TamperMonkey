@@ -5,8 +5,9 @@
  * @require.
  */
 import * as Generic from './sites/generic';
+import * as Apec from './sites/apec';
 
-export { Generic };
+export { Generic, Apec };
 
 import { registerMenuCommand } from './core/menuCommand';
 import { setPromptConfig } from './core/promptConfig';

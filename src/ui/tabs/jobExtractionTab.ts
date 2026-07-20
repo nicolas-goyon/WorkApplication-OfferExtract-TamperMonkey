@@ -9,6 +9,8 @@
 import { notify } from '../../shared/ui/notify';
 import { applyPromptConfig } from '../../core/promptConfig';
 import { getSiteStatus, setSiteStatus } from '../../core/siteStatus';
+import { getSiteTemplate } from '../../core/siteTemplates';
+import type { SiteTemplate } from '../../core/siteTemplates';
 import { elementToCleanText } from '../../shared/dom/htmlToText';
 import { startInspecting } from '../elementInspector';
 import { hideSelectionHighlight, showSelectionHighlight } from '../elementSelectionHighlight';
@@ -22,6 +24,11 @@ const PREVIEW_MAX_CHARS = 4000;
 // menu; reset naturally on page reload like the rest of the plugin's state.
 let ancestorChain: Element[] = [];
 let level = 0;
+
+// Same idea for the automated template pick: `undefined` = not run yet,
+// `null` = ran but the site's markup wasn't found (falls back to manual).
+let templateText: string | null | undefined;
+let templateRunning = false;
 
 function currentSelected(): Element | null {
   return ancestorChain[level] ?? null;
@@ -105,6 +112,22 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
     Object.assign(message.style, { margin: '0', color: '#9ca3af' } satisfies Partial<CSSStyleDeclaration>);
     section.appendChild(message);
     return;
+  }
+
+  const template = getSiteTemplate(location.hostname);
+  if (template) {
+    section.appendChild(buildTemplateBlock(section, template));
+
+    const manualLabel = document.createElement('p');
+    manualLabel.textContent = 'Manual picking (fallback)';
+    Object.assign(manualLabel.style, {
+      margin: '4px 0 8px',
+      color: '#9ca3af',
+      fontSize: '12px',
+      textTransform: 'uppercase',
+      letterSpacing: '.04em',
+    } satisfies Partial<CSSStyleDeclaration>);
+    section.appendChild(manualLabel);
   }
 
   const selected = currentSelected();
@@ -231,6 +254,74 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
   section.appendChild(copyButton);
 
   updateForCurrentLevel();
+}
+
+/** Builds the "Use <site> template" block: one button, no picking required, falls back to manual picking below it if the markup isn't found or hasn't been run yet. */
+function buildTemplateBlock(section: HTMLElement, template: SiteTemplate): HTMLElement {
+  const block = document.createElement('div');
+  Object.assign(block.style, { marginBottom: '14px' } satisfies Partial<CSSStyleDeclaration>);
+
+  const runButton = document.createElement('button');
+  runButton.type = 'button';
+  runButton.textContent = templateRunning ? 'Reading page…' : `Use ${template.label} template`;
+  runButton.disabled = templateRunning;
+  styleActionButton(runButton, true);
+  runButton.addEventListener('click', () => {
+    void runTemplate(section, template);
+  });
+  block.appendChild(runButton);
+
+  if (templateText === null && !templateRunning) {
+    const message = document.createElement('p');
+    message.textContent = `Couldn't find the expected ${template.label} layout on this page — use manual picking below.`;
+    Object.assign(message.style, { margin: '10px 0 0', color: '#9ca3af' } satisfies Partial<CSSStyleDeclaration>);
+    block.appendChild(message);
+  } else if (templateText) {
+    const preview = document.createElement('pre');
+    Object.assign(preview.style, {
+      margin: '10px 0',
+      padding: '10px',
+      background: '#0b1220',
+      border: '1px solid rgba(255,255,255,.1)',
+      borderRadius: '8px',
+      maxHeight: '220px',
+      overflow: 'auto',
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word',
+      fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+      fontSize: '11px',
+      color: '#d1d5db',
+    } satisfies Partial<CSSStyleDeclaration>);
+    preview.textContent = truncate(applyPromptConfig(templateText));
+    block.appendChild(preview);
+
+    const copyButton = document.createElement('button');
+    copyButton.type = 'button';
+    copyButton.textContent = 'Copy template text';
+    styleActionButton(copyButton, true);
+    copyButton.addEventListener('click', () => {
+      if (templateText) copyToClipboard(applyPromptConfig(templateText));
+    });
+    block.appendChild(copyButton);
+  }
+
+  return block;
+}
+
+async function runTemplate(section: HTMLElement, template: SiteTemplate): Promise<void> {
+  templateRunning = true;
+  templateText = undefined;
+  renderExtractionSection(section, true);
+
+  try {
+    templateText = await template.getText();
+  } catch {
+    templateText = null;
+    notify('Template extraction failed — use manual picking below.');
+  } finally {
+    templateRunning = false;
+    renderExtractionSection(section, true);
+  }
 }
 
 /** Closes the menu, hands off to the hover/click picker, and reopens the menu (re-rendering this tab) once it resolves either way. */

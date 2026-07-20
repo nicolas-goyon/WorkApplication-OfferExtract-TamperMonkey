@@ -11,6 +11,7 @@ Sibling project of [WorkApplicationAutofill-TamperMonkey](https://github.com/nic
 | Site | Module | Notes |
 |---|---|---|
 | Generic (any page) | `src/sites/generic/` | Reads schema.org `JobPosting` JSON-LD when present, falls back to `<title>` / meta description. Used automatically when no site-specific module matches. |
+| Apec.fr | `src/sites/apec/` | Locates title/contract/location chips and the `apec-poste-informations` offer body, expanding "Voir plus" skill-list toggles first. Also registered as a template (see below) for one-click automated picking in the Job extraction tab. |
 
 More sites are added incrementally under `src/sites/<site>/` — see `src/sites/_template/` for the starting shape of a new one.
 
@@ -18,7 +19,7 @@ More sites are added incrementally under `src/sites/<site>/` — see `src/sites/
 
 1. This repository is public and served through the [jsDelivr](https://www.jsdelivr.com/) CDN, which serves files straight from GitHub tags.
 2. Your local Tampermonkey userscript loads the library with `@require`, then calls `window.TMOfferExtract.init({ ... })`.
-3. The library installs a small floating button (draggable, snaps to the nearest corner, position remembered across sites) plus a matching Tampermonkey menu command — both open the same menu panel, with tabs for **Job extraction** and **Settings**. On a job site, the Job extraction tab has a "Fetch offer" button: click it, then click any element on the page (hover highlights it like a DevTools inspector, Esc cancels), and a range slider lets you walk up its ancestor chain until the highlighted box covers the section you want — then copy its HTML. On any hostname visited for the first time, it also asks once whether the site is job-related and remembers the answer from then on. **It never submits or modifies the page.**
+3. The library installs a small floating button (draggable, snaps to the nearest corner, position remembered across sites) plus a matching Tampermonkey menu command — both open the same menu panel, with tabs for **Job extraction** and **Settings**. On a job site with a registered template (see "Supported sites"), the Job extraction tab shows a one-click "Use `<site>` template" button that locates and copies the offer text automatically. Manual picking is always available too: click "Fetch offer", then click any element on the page (hover highlights it like a DevTools inspector, Esc cancels), and a range slider lets you walk up its ancestor chain until the highlighted box covers the section you want — then copy its cleaned text. On any hostname visited for the first time, it also asks once whether the site is job-related and remembers the answer from then on. **It never submits or modifies the page.**
 
 ## Installation (Tampermonkey)
 
@@ -48,17 +49,19 @@ npm run build:watch # rebuild on change
 
 ## Releasing
 
-CI does this automatically on tag push (see `.github/workflows/release.yml`):
+Releases are cut automatically (see `.github/workflows/release.yml`): every push to `main` that touches `src/`, `package.json`/`package-lock.json`, `tsconfig.json`, or `scripts/` typechecks, builds, and publishes the next version tag.
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
+- Default bump is **patch** (`v0.1.9` -> `v0.1.10`).
+- Include `[minor]` in a commit message on that push for a **minor** bump (`v0.1.9` -> `v0.2.0`).
+- Include `[major]` in a commit message on that push for a **major** bump (`v0.1.9` -> `v1.0.0`).
+- `[major]` wins if both are present.
+
+No manual tagging needed. To rebuild an existing tag in place (e.g. a broken jsDelivr cache), or to cut a release manually without touching `main`, run the workflow by hand from the Actions tab (`workflow_dispatch`).
+
+CI commits `dist/` onto the new tag and pushes it, so jsDelivr serves it from:
+
 ```
-
-CI typechecks, builds, commits `dist/` onto the tag, and repositions the tag onto that build commit so jsDelivr serves it from:
-
-```
-https://cdn.jsdelivr.net/gh/nicolas-goyon/WorkApplication-OfferExtract-TamperMonkey@v0.1.0/dist/tampermonkey-offerextract.js
+https://cdn.jsdelivr.net/gh/nicolas-goyon/WorkApplication-OfferExtract-TamperMonkey@v0.1.10/dist/tampermonkey-offerextract.js
 ```
 
 ## Adding a new site

@@ -1,29 +1,51 @@
 name: Build & publish bundle (jsdelivr)
 
-# Builds the Tampermonkey bundle on every `vX.Y.Z` tag push and commits
-# `dist/` ON THAT SAME TAG, so jsdelivr can serve a frozen artifact:
+# Builds the Tampermonkey bundle and publishes it as a `vX.Y.Z` tag, so
+# jsdelivr can serve a frozen artifact:
 #   https://cdn.jsdelivr.net/gh/<user>/<repo>@vX.Y.Z/dist/tampermonkey-offerextract.js
 #
-# Release flow:
-#   1. git tag v1.0.0 && git push origin v1.0.0
-#   2. CI typechecks + builds + verifies the bundle, commits dist/, then
-#      force-moves the tag onto the build commit.
-#   3. The jsdelivr URL @v1.0.0 now contains dist/.
+# Release flow (fully automatic):
+#   1. Push to main (touching src/, package.json/lock, tsconfig.json, or
+#      scripts/) — CI figures out the next version itself:
+#        - default: patch bump (vX.Y.Z -> vX.Y.Z+1)
+#        - any pushed commit message contains "[minor]" -> minor bump, patch reset
+#        - any pushed commit message contains "[major]" -> major bump, minor+patch reset
+#      "[major]" wins over "[minor]" if both are present in the same push.
+#   2. CI typechecks + builds + verifies the bundle, commits dist/ onto a
+#      detached commit built from that push, then creates/pushes the new tag
+#      pointing at it. main itself is never touched by this workflow.
+#   3. The jsdelivr URL @vX.Y.Z now contains dist/.
 #
-# Note: force-pushing the tag from this workflow uses the default
-# GITHUB_TOKEN, so GitHub does not re-trigger this workflow from that push
-# (built-in loop prevention) — the "already built?" guard below is just a
-# defensive no-op if that behavior ever changes.
+# Manual escape hatches (workflow_dispatch):
+#   - Leave "tag" empty, optionally set "bump" -> cuts a release the same way
+#     as an automatic push, from whatever branch/ref you run it against.
+#   - Set "tag" to an existing vX.Y.Z -> rebuilds that exact tag in place
+#     (e.g. to recover from a broken jsdelivr cache), bump is ignored.
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'scripts/**'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to (re)build, e.g. v1.0.0'
-        required: true
+        description: 'Existing tag to rebuild in place, e.g. v1.0.0 (leave empty to cut a new release)'
+        required: false
+      bump:
+        description: 'Version bump for a new release (ignored if "tag" is set)'
+        required: false
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
@@ -36,24 +58,85 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve the tag
-        id: tag
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Checkout the tag
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.tag.outputs.name }}
           fetch-depth: 0
           persist-credentials: true
 
-      # Guard: if the commit the tag points to is already a build commit
-      # (dist/ present and up to date), stop here.
+      - name: Resolve the release tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_BUMP: ${{ github.event.inputs.bump }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          latest_tag() {
+            git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1
+          }
+
+          next_version() {
+            local bump="$1"
+            local latest
+            latest="$(latest_tag)"
+            latest="${latest:-v0.0.0}"
+            local ver="${latest#v}"
+            IFS='.' read -r major minor patch <<< "$ver"
+            case "$bump" in
+              major) major=$((major + 1)); minor=0; patch=0 ;;
+              minor) minor=$((minor + 1)); patch=0 ;;
+              *)     patch=$((patch + 1)) ;;
+            esac
+            echo "v${major}.${minor}.${patch}"
+          }
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${INPUT_TAG:-}" ]; then
+            # Rebuild an explicit, already-existing tag in place.
+            echo "name=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
+            echo "needs_checkout=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            bump="${INPUT_BUMP:-patch}"
+          else
+            # Push to main: scan the pushed commit messages for [minor]/[major].
+            zero_sha="0000000000000000000000000000000000000000"
+            if [ -z "${BEFORE_SHA:-}" ] || [ "${BEFORE_SHA}" = "$zero_sha" ]; then
+              messages="$(git log -1 --pretty=%B "$AFTER_SHA")"
+            else
+              messages="$(git log --pretty=%B "${BEFORE_SHA}..${AFTER_SHA}")"
+            fi
+            if grep -qi '\[major\]' <<< "$messages"; then
+              bump="major"
+            elif grep -qi '\[minor\]' <<< "$messages"; then
+              bump="minor"
+            else
+              bump="patch"
+            fi
+          fi
+          echo "Bump: $bump"
+
+          new_tag="$(next_version "$bump")"
+          if git rev-parse -q --verify "refs/tags/${new_tag}" >/dev/null; then
+            echo "::error::Computed tag ${new_tag} already exists — refusing to overwrite it. Rebuild it explicitly via workflow_dispatch if that's intended."
+            exit 1
+          fi
+
+          echo "name=${new_tag}" >> "$GITHUB_OUTPUT"
+          echo "needs_checkout=false" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the existing tag
+        if: steps.tag.outputs.needs_checkout == 'true'
+        run: git checkout "${{ steps.tag.outputs.name }}"
+
+      # Guard: if the commit we're about to build from is already a build
+      # commit (dist/ present and up to date), stop here. Only matters for
+      # the explicit-tag rebuild path — new releases are always cut from a
+      # fresh (non-build) commit.
       - name: Detect an already-built tag
         id: guard
         run: |
