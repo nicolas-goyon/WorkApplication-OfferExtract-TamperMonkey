@@ -27,3 +27,16 @@ export function seedDefaultJobSitesOnce(loadDefaultSites: boolean): void {
 
   setValue(SEEDED_KEY, true);
 }
+
+/**
+ * Re-applies the built-in list of common job board/ATS hostnames as "job
+ * site", overwriting any status previously set for exactly those hostnames.
+ * Any other site the user has classified themselves is left untouched.
+ * Used by the Settings tab's "Reset default job sites" button — separate
+ * from the once-per-install seeding above, so it can be run any time.
+ */
+export function resetDefaultJobSites(): void {
+  for (const hostname of DEFAULT_JOB_SITE_HOSTNAMES) {
+    setSiteStatus(hostname, true);
+  }
+}

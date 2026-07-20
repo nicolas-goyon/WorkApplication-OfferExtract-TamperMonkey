@@ -1,5 +1,7 @@
-/** Settings tab: reset the floating button position, forget this site's classification. */
+/** Settings tab: reset the floating button position, forget this site's classification, reset default job sites. */
 import { getButtonCorner, setButtonCorner } from '../../core/buttonPosition';
+import { DEFAULT_JOB_SITE_HOSTNAMES } from '../../core/defaultJobSites';
+import { resetDefaultJobSites } from '../../core/seedDefaultSites';
 import { clearSiteStatus } from '../../core/siteStatus';
 import type { MenuTab } from '../menuPanel';
 
@@ -36,10 +38,38 @@ export const settingsTab: MenuTab = {
       forgetButton.style.opacity = '.6';
     });
 
+    const defaultsLabel = document.createElement('p');
+    defaultsLabel.textContent = 'Default job sites';
+    Object.assign(defaultsLabel.style, { margin: '16px 0 4px' } satisfies Partial<CSSStyleDeclaration>);
+
+    const defaultsHint = document.createElement('p');
+    defaultsHint.textContent =
+      "Re-marks the built-in list of common job boards/ATS as job sites, without touching any other site you've classified yourself.";
+    Object.assign(defaultsHint.style, {
+      margin: '0 0 8px',
+      color: '#9ca3af',
+      fontSize: '12px',
+    } satisfies Partial<CSSStyleDeclaration>);
+
+    const resetDefaultsButton = document.createElement('button');
+    resetDefaultsButton.type = 'button';
+    resetDefaultsButton.textContent = `Reset ${DEFAULT_JOB_SITE_HOSTNAMES.length} default job sites`;
+    styleButton(resetDefaultsButton);
+    resetDefaultsButton.addEventListener('click', () => {
+      resetDefaultJobSites();
+      resetDefaultsButton.textContent = 'Done — default sites restored.';
+      resetDefaultsButton.disabled = true;
+      resetDefaultsButton.style.cursor = 'default';
+      resetDefaultsButton.style.opacity = '.6';
+    });
+
     container.appendChild(positionLabel);
     container.appendChild(resetPositionButton);
     container.appendChild(siteLabel);
     container.appendChild(forgetButton);
+    container.appendChild(defaultsLabel);
+    container.appendChild(defaultsHint);
+    container.appendChild(resetDefaultsButton);
   },
 };
 

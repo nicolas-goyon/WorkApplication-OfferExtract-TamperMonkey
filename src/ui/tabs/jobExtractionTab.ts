@@ -4,10 +4,11 @@
  * hover-highlights whatever's under the mouse, and resolves on click. The
  * tab then shows the picked element with a range slider that walks up its
  * ancestor chain (re-highlighting the wider box each step) until you're
- * happy with the selection, at which point you can copy its outer HTML.
+ * happy with the selection, at which point you can copy its cleaned text.
  */
 import { notify } from '../../shared/ui/notify';
 import { getSiteStatus, setSiteStatus } from '../../core/siteStatus';
+import { elementToCleanText } from '../../shared/dom/htmlToText';
 import { startInspecting } from '../elementInspector';
 import { hideSelectionHighlight, showSelectionHighlight } from '../elementSelectionHighlight';
 import { closeMenu, openMenu } from '../menuPanel';
@@ -61,6 +62,9 @@ export const jobExtractionTab: MenuTab = {
     const refresh = () => {
       const status = getSiteStatus(hostname);
       statusLine.textContent = describeStatus(hostname, status);
+      // Once a site is confirmed as job-related, the toggle is just noise —
+      // reclassifying happens from the Sites tab or Settings' "Forget this site".
+      toggleRow.style.display = status === true ? 'none' : 'flex';
       setActive(yesButton, status === true);
       setActive(noButton, status === false);
       renderExtractionSection(section, status === true);
@@ -194,12 +198,12 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
 
   const copyButton = document.createElement('button');
   copyButton.type = 'button';
-  copyButton.textContent = 'Copy selected HTML';
+  copyButton.textContent = 'Copy selected text';
   styleActionButton(copyButton, true);
   copyButton.addEventListener('click', () => {
     const el = currentSelected();
     if (!el) return;
-    copyToClipboard(el.outerHTML);
+    copyToClipboard(elementToCleanText(el));
   });
 
   const updateForCurrentLevel = () => {
@@ -207,7 +211,7 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
     if (!el) return;
     label.textContent = describeElement(el);
     sliderValue.textContent = `${level} / ${Math.max(ancestorChain.length - 1, 0)}`;
-    preview.textContent = truncate(el.outerHTML);
+    preview.textContent = truncate(elementToCleanText(el));
     showSelectionHighlight(el);
   };
 
@@ -265,14 +269,14 @@ function describeElement(el: Element): string {
 
 function truncate(text: string): string {
   return text.length > PREVIEW_MAX_CHARS
-    ? `${text.slice(0, PREVIEW_MAX_CHARS)}\n… (truncated for preview — full HTML is copied)`
+    ? `${text.slice(0, PREVIEW_MAX_CHARS)}\n… (truncated for preview — full text is copied)`
     : text;
 }
 
 async function copyToClipboard(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text);
-    notify('Copied selected HTML to clipboard.');
+    notify('Copied selected text to clipboard.');
   } catch {
     notify('Could not copy — clipboard access was blocked.');
   }

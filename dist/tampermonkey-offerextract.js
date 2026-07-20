@@ -223,6 +223,11 @@ var TMOfferExtract = (() => {
     }
     setValue(SEEDED_KEY, true);
   }
+  function resetDefaultJobSites() {
+    for (const hostname of DEFAULT_JOB_SITE_HOSTNAMES) {
+      setSiteStatus(hostname, true);
+    }
+  }
 
   // src/core/buttonPosition.ts
   var BUTTON_CORNER_KEY = "offerextract:buttonCorner";
@@ -557,6 +562,144 @@ var TMOfferExtract = (() => {
     setTimeout(() => toast.remove(), durationMs);
   }
 
+  // src/shared/dom/htmlToText.ts
+  var SKIP_TAGS = /* @__PURE__ */ new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "IFRAME", "CANVAS", "SVG"]);
+  var TIGHT_BLOCK_TAGS = /* @__PURE__ */ new Set([
+    "DIV",
+    "SECTION",
+    "ARTICLE",
+    "HEADER",
+    "FOOTER",
+    "MAIN",
+    "ASIDE",
+    "FIGURE",
+    "FIGCAPTION",
+    "FORM",
+    "UL",
+    "OL",
+    "THEAD",
+    "TBODY",
+    "TFOOT"
+  ]);
+  function elementToCleanText(root2) {
+    const raw = renderNode(root2);
+    return raw.replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  function isHidden(el) {
+    if (el.hasAttribute("hidden") || el.getAttribute("aria-hidden") === "true") return true;
+    const style = el.style;
+    if (style && (style.display === "none" || style.visibility === "hidden")) return true;
+    try {
+      const computed = getComputedStyle(el);
+      return computed.display === "none" || computed.visibility === "hidden";
+    } catch {
+      return false;
+    }
+  }
+  function renderNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return collapseWhitespace(node.textContent ?? "");
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    const el = node;
+    const tag = el.tagName;
+    if (SKIP_TAGS.has(tag) || isHidden(el)) return "";
+    switch (tag) {
+      case "BR":
+        return "\n";
+      case "HR":
+        return "\n\n---\n\n";
+      case "IMG":
+        return "";
+      case "TABLE":
+        return renderTable(el);
+      case "STRONG":
+      case "B":
+        return wrapNonEmpty(renderChildren(el), "**", "**");
+      case "EM":
+      case "I":
+        return wrapNonEmpty(renderChildren(el), "*", "*");
+      case "CODE":
+        return wrapNonEmpty(renderChildren(el), "`", "`");
+      case "A": {
+        const href = el.getAttribute("href");
+        const text = renderChildren(el).trim();
+        return href && text ? `[${text}](${href})` : text;
+      }
+      case "LI": {
+        const marker = el.parentElement?.tagName === "OL" ? `${liIndex(el)}. ` : "- ";
+        return `
+${marker}${renderChildren(el).trim()}`;
+      }
+      case "P":
+        return `
+
+${renderChildren(el).trim()}
+
+`;
+      case "BLOCKQUOTE": {
+        const quoted = renderChildren(el).trim().split("\n").map((line) => `> ${line}`).join("\n");
+        return `
+
+${quoted}
+
+`;
+      }
+      case "PRE":
+        return `
+
+\`\`\`
+${(el.textContent ?? "").trim()}
+\`\`\`
+
+`;
+      default:
+        if (/^H[1-6]$/.test(tag)) {
+          const level2 = Number(tag[1]);
+          return `
+
+${"#".repeat(level2)} ${renderChildren(el).trim()}
+
+`;
+        }
+        if (TIGHT_BLOCK_TAGS.has(tag)) return `
+${renderChildren(el)}
+`;
+        return renderChildren(el);
+    }
+  }
+  function renderChildren(el) {
+    return Array.from(el.childNodes).map(renderNode).join("");
+  }
+  function wrapNonEmpty(text, open, close) {
+    return text.trim() ? `${open}${text.trim()}${close}` : "";
+  }
+  function liIndex(el) {
+    const items = Array.from(el.parentElement?.children ?? []).filter((c) => c.tagName === "LI");
+    return items.indexOf(el) + 1;
+  }
+  function renderTable(table) {
+    const rows = Array.from(table.rows);
+    if (rows.length === 0) return "";
+    const rowTexts = rows.map(
+      (row) => Array.from(row.cells).map((cell) => renderChildren(cell).trim().replace(/\|/g, "\\|") || " ").join(" | ")
+    );
+    const lines = [`| ${rowTexts[0]} |`];
+    const hasHeader = Array.from(rows[0].cells).some((cell) => cell.tagName === "TH");
+    if (hasHeader) {
+      lines.push(`| ${Array.from({ length: rows[0].cells.length }, () => "---").join(" | ")} |`);
+    }
+    for (let i = 1; i < rowTexts.length; i++) lines.push(`| ${rowTexts[i]} |`);
+    return `
+
+${lines.join("\n")}
+
+`;
+  }
+  function collapseWhitespace(text) {
+    return text.replace(/\s+/g, " ");
+  }
+
   // src/shared/ui/elementOverlay.ts
   function createOverlayBox(color, zIndex = 2147483646) {
     const box2 = document.createElement("div");
@@ -728,6 +871,7 @@ var TMOfferExtract = (() => {
       const refresh = () => {
         const status = getSiteStatus(hostname);
         statusLine.textContent = describeStatus(hostname, status);
+        toggleRow.style.display = status === true ? "none" : "flex";
         setActive(yesButton, status === true);
         setActive(noButton, status === false);
         renderExtractionSection(section, status === true);
@@ -841,19 +985,19 @@ var TMOfferExtract = (() => {
     });
     const copyButton = document.createElement("button");
     copyButton.type = "button";
-    copyButton.textContent = "Copy selected HTML";
+    copyButton.textContent = "Copy selected text";
     styleActionButton(copyButton, true);
     copyButton.addEventListener("click", () => {
       const el = currentSelected();
       if (!el) return;
-      copyToClipboard(el.outerHTML);
+      copyToClipboard(elementToCleanText(el));
     });
     const updateForCurrentLevel = () => {
       const el = currentSelected();
       if (!el) return;
       label.textContent = describeElement(el);
       sliderValue.textContent = `${level} / ${Math.max(ancestorChain.length - 1, 0)}`;
-      preview.textContent = truncate(el.outerHTML);
+      preview.textContent = truncate(elementToCleanText(el));
       showSelectionHighlight(el);
     };
     slider.addEventListener("input", () => {
@@ -902,12 +1046,12 @@ var TMOfferExtract = (() => {
   }
   function truncate(text) {
     return text.length > PREVIEW_MAX_CHARS ? `${text.slice(0, PREVIEW_MAX_CHARS)}
-\u2026 (truncated for preview \u2014 full HTML is copied)` : text;
+\u2026 (truncated for preview \u2014 full text is copied)` : text;
   }
   async function copyToClipboard(text) {
     try {
       await navigator.clipboard.writeText(text);
-      notify2("Copied selected HTML to clipboard.");
+      notify2("Copied selected text to clipboard.");
     } catch {
       notify2("Could not copy \u2014 clipboard access was blocked.");
     }
@@ -975,10 +1119,34 @@ var TMOfferExtract = (() => {
         forgetButton.style.cursor = "default";
         forgetButton.style.opacity = ".6";
       });
+      const defaultsLabel = document.createElement("p");
+      defaultsLabel.textContent = "Default job sites";
+      Object.assign(defaultsLabel.style, { margin: "16px 0 4px" });
+      const defaultsHint = document.createElement("p");
+      defaultsHint.textContent = "Re-marks the built-in list of common job boards/ATS as job sites, without touching any other site you've classified yourself.";
+      Object.assign(defaultsHint.style, {
+        margin: "0 0 8px",
+        color: "#9ca3af",
+        fontSize: "12px"
+      });
+      const resetDefaultsButton = document.createElement("button");
+      resetDefaultsButton.type = "button";
+      resetDefaultsButton.textContent = `Reset ${DEFAULT_JOB_SITE_HOSTNAMES.length} default job sites`;
+      styleButton(resetDefaultsButton);
+      resetDefaultsButton.addEventListener("click", () => {
+        resetDefaultJobSites();
+        resetDefaultsButton.textContent = "Done \u2014 default sites restored.";
+        resetDefaultsButton.disabled = true;
+        resetDefaultsButton.style.cursor = "default";
+        resetDefaultsButton.style.opacity = ".6";
+      });
       container.appendChild(positionLabel);
       container.appendChild(resetPositionButton);
       container.appendChild(siteLabel);
       container.appendChild(forgetButton);
+      container.appendChild(defaultsLabel);
+      container.appendChild(defaultsHint);
+      container.appendChild(resetDefaultsButton);
     }
   };
   function styleButton(button) {
