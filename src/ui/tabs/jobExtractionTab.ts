@@ -137,7 +137,7 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
   if (!selected) {
     const hint = document.createElement('p');
     hint.textContent = 'Click "Fetch offer", then click any element on the page (e.g. a paragraph of the description). Press Esc to cancel.';
-    Object.assign(hint.style, { margin: '0', color: '#9ca3af' } satisfies Partial<CSSStyleDeclaration>);
+    Object.assign(hint.style, { margin: '0', color: '#f9fafb' } satisfies Partial<CSSStyleDeclaration>);
     section.appendChild(hint);
     return;
   }
@@ -149,7 +149,7 @@ function renderExtractionSection(section: HTMLElement, isJobSite: boolean): void
     margin: '0 0 6px',
     fontFamily: 'ui-monospace, SFMono-Regular, monospace',
     fontSize: '12px',
-    color: '#93c5fd',
+    color: '#f9fafb',
     overflowWrap: 'anywhere',
   } satisfies Partial<CSSStyleDeclaration>);
 
