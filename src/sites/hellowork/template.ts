@@ -1,4 +1,5 @@
 import { elementToCleanText } from '../../shared/dom/htmlToText';
+import { formatHeader, readHeader } from './header';
 import { COLLAPSIBLE_SECTION_SELECTOR, DESCRIPTION_SELECTOR, OFFER_PANEL_SELECTOR } from './selectors';
 
 const HOSTNAME_SUFFIX = 'hellowork.com';
@@ -50,10 +51,14 @@ export async function getTemplateText(): Promise<string | null> {
 
   expandCollapsedSections(sections);
 
-  const text = sections
+  const header = formatHeader(readHeader(panel));
+
+  const description = sections
     .map((el) => elementToCleanText(el))
     .filter((chunk) => chunk.length > 0)
     .join('\n\n');
+
+  const text = [header, description].filter((chunk) => chunk.length > 0).join('\n\n');
 
   return text.trim() || null;
 }

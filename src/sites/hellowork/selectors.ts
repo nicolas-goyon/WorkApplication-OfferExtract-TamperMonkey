@@ -13,6 +13,12 @@ export const COMPANY_SELECTOR = 'h1 a[title$="recrutement"]';
 // exists for them, so this relies on that structural position instead.
 export const DETAILS_LIST_SELECTOR = 'h1 + ul';
 
+// Salary chip button (its text reads either an amount or "Pas de salaire renseigné" — it
+// always renders). No data-cy hook exists for the badges <ul> that contains it (salary,
+// "ESN", remote, sector, experience, ...), so this button also anchors that whole list —
+// see header.ts.
+export const SALARY_BUTTON_SELECTOR = '[data-cy="salary-tag-button"]';
+
 // "Détail du poste" / "Les missions du poste": always-open section body. It's visually
 // clipped with a CSS line-clamp rather than actually hidden, so the full text is already
 // in the DOM before the "Voir plus" toggle is clicked.
