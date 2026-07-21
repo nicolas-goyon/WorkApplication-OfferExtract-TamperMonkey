@@ -23,6 +23,7 @@ var TMOfferExtract = (() => {
   __export(src_exports, {
     Apec: () => apec_exports,
     Generic: () => generic_exports,
+    Hellowork: () => hellowork_exports,
     LinkedIn: () => linkedin_exports,
     init: () => init
   });
@@ -311,12 +312,113 @@ ${lines.join("\n")}
   // src/sites/apec/index.ts
   var extract2 = extractOffer;
 
-  // src/sites/linkedin/index.ts
-  var linkedin_exports = {};
-  __export(linkedin_exports, {
+  // src/sites/hellowork/index.ts
+  var hellowork_exports = {};
+  __export(hellowork_exports, {
     extract: () => extract3,
     getTemplateText: () => getTemplateText2,
     matchesHostname: () => matchesHostname2
+  });
+
+  // src/sites/hellowork/selectors.ts
+  var OFFER_PANEL_SELECTOR = "#offer-panel";
+  var TITLE_SELECTOR2 = '[data-cy="jobTitle"]';
+  var COMPANY_SELECTOR = 'h1 a[title$="recrutement"]';
+  var DETAILS_LIST_SELECTOR2 = "h1 + ul";
+  var SALARY_BUTTON_SELECTOR = '[data-cy="salary-tag-button"]';
+  var DESCRIPTION_SELECTOR2 = '[data-truncate-text-target="content"]';
+  var COLLAPSIBLE_SECTION_SELECTOR = "details";
+
+  // src/sites/hellowork/header.ts
+  function readHeader(panel) {
+    return {
+      title: textOf(panel.querySelector(TITLE_SELECTOR2)?.textContent),
+      company: textOf(panel.querySelector(COMPANY_SELECTOR)?.textContent),
+      details: Array.from(panel.querySelectorAll(`${DETAILS_LIST_SELECTOR2} li`)).map((li) => textOf(li.textContent)).filter((text) => !!text),
+      tags: readTags(panel)
+    };
+  }
+  function readTags(panel) {
+    const list = panel.querySelector(SALARY_BUTTON_SELECTOR)?.closest("ul");
+    if (!list) return [];
+    return Array.from(list.children).map((li) => textOf(li.textContent)).filter((text) => !!text);
+  }
+  function formatHeader(header) {
+    return [
+      header.title,
+      header.company,
+      header.details.length > 0 ? header.details.join(" \xB7 ") : void 0,
+      header.tags.length > 0 ? header.tags.join(" \xB7 ") : void 0
+    ].filter((line) => !!line).join("\n");
+  }
+
+  // src/sites/hellowork/template.ts
+  var HOSTNAME_SUFFIX2 = "hellowork.com";
+  function matchesHostname2(hostname) {
+    return hostname === HOSTNAME_SUFFIX2 || hostname.endsWith(`.${HOSTNAME_SUFFIX2}`);
+  }
+  function getPanel() {
+    return document.querySelector(OFFER_PANEL_SELECTOR);
+  }
+  function locateSections2(panel) {
+    const seen = /* @__PURE__ */ new Set();
+    const sections = [];
+    const add = (el) => {
+      if (!seen.has(el)) {
+        seen.add(el);
+        sections.push(el);
+      }
+    };
+    panel.querySelectorAll(DESCRIPTION_SELECTOR2).forEach(add);
+    panel.querySelectorAll(COLLAPSIBLE_SECTION_SELECTOR).forEach(add);
+    return sections;
+  }
+  function expandCollapsedSections2(sections) {
+    for (const section of sections) {
+      if (section.tagName === "DETAILS") {
+        section.open = true;
+      }
+    }
+  }
+  async function getTemplateText2() {
+    const panel = getPanel();
+    if (!panel) return null;
+    const sections = locateSections2(panel);
+    if (sections.length === 0) return null;
+    expandCollapsedSections2(sections);
+    const header = formatHeader(readHeader(panel));
+    const description = sections.map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0).join("\n\n");
+    const text = [header, description].filter((chunk) => chunk.length > 0).join("\n\n");
+    return text.trim() || null;
+  }
+
+  // src/sites/hellowork/extract.ts
+  function extractOffer2() {
+    const generic = extractGenericOffer();
+    const panel = getPanel();
+    if (!panel) return generic;
+    const header = readHeader(panel);
+    const sections = locateSections2(panel);
+    expandCollapsedSections2(sections);
+    const description = sections.map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0).join("\n\n");
+    return {
+      ...generic,
+      title: header.title ?? generic.title,
+      company: header.company ?? generic.company,
+      location: header.details[0] ?? generic.location,
+      description: description || generic.description
+    };
+  }
+
+  // src/sites/hellowork/index.ts
+  var extract3 = extractOffer2;
+
+  // src/sites/linkedin/index.ts
+  var linkedin_exports = {};
+  __export(linkedin_exports, {
+    extract: () => extract4,
+    getTemplateText: () => getTemplateText3,
+    matchesHostname: () => matchesHostname3
   });
 
   // src/sites/linkedin/selectors.ts
@@ -366,7 +468,7 @@ ${lines.join("\n")}
   }
 
   // src/sites/linkedin/extract.ts
-  function extractOffer2() {
+  function extractOffer3() {
     const generic = extractGenericOffer();
     const topCard = readTopCard();
     const descriptionSections = Array.from(document.querySelectorAll(EXPANDABLE_TEXT_SELECTOR)).map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0);
@@ -381,14 +483,14 @@ ${lines.join("\n")}
   }
 
   // src/sites/linkedin/template.ts
-  var HOSTNAME_SUFFIX2 = "linkedin.com";
-  function matchesHostname2(hostname) {
-    return hostname === HOSTNAME_SUFFIX2 || hostname.endsWith(`.${HOSTNAME_SUFFIX2}`);
+  var HOSTNAME_SUFFIX3 = "linkedin.com";
+  function matchesHostname3(hostname) {
+    return hostname === HOSTNAME_SUFFIX3 || hostname.endsWith(`.${HOSTNAME_SUFFIX3}`);
   }
-  function locateSections2() {
+  function locateSections3() {
     return Array.from(document.querySelectorAll(EXPANDABLE_TEXT_SELECTOR));
   }
-  async function expandCollapsedSections2(scope) {
+  async function expandCollapsedSections3(scope) {
     const toggles = Array.from(scope.querySelectorAll(SEE_MORE_SELECTOR2));
     if (toggles.length === 0) return;
     for (const toggle of toggles) {
@@ -408,23 +510,23 @@ ${lines.join("\n")}
       step(count);
     });
   }
-  function formatHeader(topCard) {
+  function formatHeader2(topCard) {
     return [topCard.title, topCard.company, topCard.location, topCard.tags.length > 0 ? topCard.tags.join(" \xB7 ") : void 0].filter((line) => !!line).join("\n");
   }
-  async function getTemplateText2() {
-    const sections = locateSections2();
+  async function getTemplateText3() {
+    const sections = locateSections3();
     if (sections.length === 0) return null;
     for (const section of sections) {
-      await expandCollapsedSections2(section);
+      await expandCollapsedSections3(section);
     }
     const description = sections.map((el) => elementToCleanText(el)).filter((chunk) => chunk.length > 0).join("\n\n");
-    const header = formatHeader(readTopCard());
+    const header = formatHeader2(readTopCard());
     const text = [header, description].filter((chunk) => chunk.length > 0).join("\n\n");
     return text.trim() || null;
   }
 
   // src/sites/linkedin/index.ts
-  var extract3 = extractOffer2;
+  var extract4 = extractOffer3;
 
   // src/core/menuCommand.ts
   function registerMenuCommand(label, onCommand) {
@@ -941,6 +1043,12 @@ ${decorated}` : decorated;
     {
       id: "linkedin",
       label: "LinkedIn",
+      matchesHostname: matchesHostname3,
+      getText: getTemplateText3
+    },
+    {
+      id: "hellowork",
+      label: "Hellowork",
       matchesHostname: matchesHostname2,
       getText: getTemplateText2
     }
