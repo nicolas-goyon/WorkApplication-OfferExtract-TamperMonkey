@@ -9,6 +9,7 @@
  * sites/apec/template.ts for the shape) and listing it in SITE_TEMPLATES.
  */
 import * as Apec from '../sites/apec';
+import * as Hellowork from '../sites/hellowork';
 import * as LinkedIn from '../sites/linkedin';
 
 export interface SiteTemplate {
@@ -32,6 +33,12 @@ const SITE_TEMPLATES: readonly SiteTemplate[] = [
     label: 'LinkedIn',
     matchesHostname: LinkedIn.matchesHostname,
     getText: LinkedIn.getTemplateText,
+  },
+  {
+    id: 'hellowork',
+    label: 'Hellowork',
+    matchesHostname: Hellowork.matchesHostname,
+    getText: Hellowork.getTemplateText,
   },
 ];
 
