@@ -6,10 +6,11 @@
  */
 import * as Generic from './sites/generic';
 import * as Apec from './sites/apec';
+import * as ChoisirLeServicePublic from './sites/choisirleservicepublic';
 import * as Hellowork from './sites/hellowork';
 import * as LinkedIn from './sites/linkedin';
 
-export { Generic, Apec, Hellowork, LinkedIn };
+export { Generic, Apec, ChoisirLeServicePublic, Hellowork, LinkedIn };
 
 import { registerMenuCommand } from './core/menuCommand';
 import { setPromptConfig } from './core/promptConfig';

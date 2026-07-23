@@ -9,6 +9,7 @@
  * sites/apec/template.ts for the shape) and listing it in SITE_TEMPLATES.
  */
 import * as Apec from '../sites/apec';
+import * as ChoisirLeServicePublic from '../sites/choisirleservicepublic';
 import * as Hellowork from '../sites/hellowork';
 import * as LinkedIn from '../sites/linkedin';
 
@@ -39,6 +40,12 @@ const SITE_TEMPLATES: readonly SiteTemplate[] = [
     label: 'Hellowork',
     matchesHostname: Hellowork.matchesHostname,
     getText: Hellowork.getTemplateText,
+  },
+  {
+    id: 'choisirleservicepublic',
+    label: 'Choisir le service public',
+    matchesHostname: ChoisirLeServicePublic.matchesHostname,
+    getText: ChoisirLeServicePublic.getTemplateText,
   },
 ];
 
